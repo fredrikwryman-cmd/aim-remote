@@ -61,7 +61,7 @@ final class TVConnection: ObservableObject {
             sec_protocol_options_set_local_identity(tls.securityProtocolOptions, secIdentity)
             sec_protocol_options_set_verify_block(tls.securityProtocolOptions, { [weak self] _, trust, complete in
                 let trustRef = sec_trust_copy_ref(trust).takeRetainedValue()
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     guard let self, self.generation == token,
                           let chain = SecTrustCopyCertificateChain(trustRef) as? [SecCertificate],
                           let cert = chain.first, let key = SecCertificateCopyKey(cert) else {
@@ -86,7 +86,7 @@ final class TVConnection: ObservableObject {
             let channel = NWConnection(host: NWEndpoint.Host(clean), port: port, using: parameters)
             connection = channel
             channel.stateUpdateHandler = { [weak self] state in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     guard let self, self.generation == token else { return }
                     switch state {
                     case .ready:
@@ -160,7 +160,7 @@ final class TVConnection: ObservableObject {
         // Length and payload are one write, so rapid button presses cannot interleave frames.
         connection.send(content: FrameBuffer.wrap(message), completion: .contentProcessed { [weak self] error in
             if let error {
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     guard let self, self.generation == token else { return }
                     self.fail("Kommandot kunde inte skickas. \(error.localizedDescription)")
                 }
@@ -169,7 +169,7 @@ final class TVConnection: ObservableObject {
     }
     private func receive(token: UUID) {
         connection?.receive(minimumIncompleteLength: 1, maximumLength: 65_536) { [weak self] data, _, complete, error in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self, self.generation == token else { return }
                 do {
                     if let data, !data.isEmpty {
@@ -270,3 +270,4 @@ final class TVConnection: ObservableObject {
         voiceID = nil; audioBytes.removeAll(); recording = false; awaitingVoice = false
     }
 }
+
