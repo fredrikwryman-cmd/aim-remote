@@ -7,6 +7,7 @@ private enum Panel: String, Identifiable {
     var id: String { rawValue }
 }
 
+@MainActor
 struct RemoteRoot: View {
     @ObservedObject var connection: TVConnection
     @AppStorage("haptics") private var haptics = true
@@ -38,7 +39,7 @@ struct RemoteRoot: View {
             case .help: HelpView()
             }
         }
-        .alert("AiM Remote", isPresented: Binding(get: { connection.notice != nil }, set: { if !$0 { connection.notice = nil } })) {
+        .alert("AiM Remote", isPresented: Binding(get: { connection.notice != nil && panel == nil }, set: { if !$0 { connection.notice = nil } })) {
             Button("OK") { connection.notice = nil }
         } message: { Text(connection.notice ?? "") }
     }

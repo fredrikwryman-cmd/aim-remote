@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct ConnectionView: View {
     @ObservedObject var connection: TVConnection
     @StateObject private var discovery = TVDiscovery()
@@ -87,6 +88,7 @@ struct ConnectionView: View {
     }
 }
 
+@MainActor
 struct KeyboardView: View {
     @ObservedObject var connection: TVConnection
     @Environment(\.dismiss) private var dismiss

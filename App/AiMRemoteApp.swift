@@ -1,6 +1,7 @@
 import SwiftUI
 
 @main
+@MainActor
 struct AiMRemoteApp: App {
     @StateObject private var connection = TVConnection()
     @Environment(\.scenePhase) private var scenePhase

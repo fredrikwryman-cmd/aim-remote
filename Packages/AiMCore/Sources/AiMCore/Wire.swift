@@ -1,6 +1,15 @@
 import Foundation
 
-public enum WireError: Error { case malformed, oversized, unexpectedMessage }
+public enum WireError: LocalizedError {
+    case malformed, oversized, unexpectedMessage
+    public var errorDescription: String? {
+        switch self {
+        case .malformed: return "TV:n skickade ett meddelande som inte kunde läsas."
+        case .oversized: return "TV:ns meddelande hade en ogiltig längd."
+        case .unexpectedMessage: return "TV:n avvisade begäran eller svarade på ett oväntat sätt. Försök igen."
+        }
+    }
+}
 
 /// The subset of protobuf wire types used by Android TV Remote v2.
 /// Unknown fixed32/fixed64 fields are skipped for forward compatibility.
