@@ -1,0 +1,13 @@
+.DS_Store
+.build/
+build/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+*.xcresult/
+*.ipa
+*.p12
+*.pem
+*.key
+*.mobileprovision
+xcuserdata/

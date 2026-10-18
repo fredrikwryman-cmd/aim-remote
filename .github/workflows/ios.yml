@@ -1,0 +1,64 @@
+name: Build AiM Remote for iPhone
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Protocol tests
+        run: swift test --package-path Packages/AiMCore
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Select iPhone simulator
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          data = json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','--json']))
+          devices = [d for group in data['devices'].values() for d in group if 'iPhone' in d['name']]
+          if not devices:
+              raise SystemExit('No available iPhone simulator')
+          chosen = next((d for d in devices if 'iPhone 15' == d['name']), devices[0])
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write('SIMULATOR_ID=' + chosen['udid'] + '\n')
+          PY
+      - name: App and UI tests
+        run: |
+          xcodebuild test -project AiMRemote.xcodeproj -scheme AiMRemote \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -resultBundlePath build/AiMRemote-tests.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Build unsigned iPhone app
+        run: |
+          xcodebuild build -project AiMRemote.xcodeproj -scheme AiMRemote \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO
+          mkdir -p build/Package/Payload
+          ditto build/DerivedData/Build/Products/Release-iphoneos/AiMRemote.app build/Package/Payload/AiMRemote.app
+          cd build/Package
+          zip -qr ../AiM-Remote-unsigned.ipa Payload
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: AiM-Remote-unsigned-IPA
+          path: build/AiM-Remote-unsigned.ipa
+          if-no-files-found: error
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AiM-Remote-test-results
+          path: build/AiMRemote-tests.xcresult
+          if-no-files-found: ignore

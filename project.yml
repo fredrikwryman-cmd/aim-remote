@@ -1,0 +1,61 @@
+name: AiMRemote
+options:
+  bundleIdPrefix: se.aim
+  deploymentTarget:
+    iOS: '16.4'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    IPHONEOS_DEPLOYMENT_TARGET: '16.4'
+    TARGETED_DEVICE_FAMILY: '1'
+    MARKETING_VERSION: '0.1.0'
+    CURRENT_PROJECT_VERSION: '1'
+packages:
+  AiMCore:
+    path: Packages/AiMCore
+targets:
+  AiMRemote:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes:
+          - Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: se.aim.remote
+        INFOPLIST_FILE: App/Info.plist
+        PRODUCT_NAME: AiMRemote
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - package: AiMCore
+  AiMRemoteTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: se.aim.remote.tests
+    dependencies:
+      - target: AiMRemote
+  AiMRemoteUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: se.aim.remote.uitests
+    dependencies:
+      - target: AiMRemote
+schemes:
+  AiMRemote:
+    build:
+      targets:
+        AiMRemote: all
+    test:
+      targets:
+        - AiMRemoteTests
+        - AiMRemoteUITests
+      gatherCoverageData: true
