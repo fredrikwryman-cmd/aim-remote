@@ -39,7 +39,7 @@ jobs:
           xcodebuild test -project AiMRemote.xcodeproj -scheme AiMRemote \
             -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -resultBundlePath build/AiMRemote-tests.xcresult \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
       - name: Build unsigned iPhone app
         run: |
           xcodebuild build -project AiMRemote.xcodeproj -scheme AiMRemote \
