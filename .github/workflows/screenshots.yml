@@ -1,29 +1,65 @@
-name: Export existing UI screenshots
+name: Design screenshots
+
+# Tar simulatorbilder av R01 Start, R02 Fjarr mork och R02 Fjarr ljus pa en
+# 390 x 844-iPhone och pa 375 x 667, och laddar upp dem som artifact.
+
 on:
   workflow_dispatch:
-    inputs:
-      run_id:
-        description: Successful iPhone build run ID
-        required: true
-        type: string
+
 permissions:
   contents: read
-  actions: read
+
 jobs:
-  export:
+  shots:
     runs-on: macos-26
-    timeout-minutes: 10
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        size: ["390x844", "375x667"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+
+      - name: Select Xcode
+        run: |
+          APP=$(python3 scripts/select_xcode.py)
+          sudo xcode-select -s "$APP/Contents/Developer"
+          echo "DEVELOPER_DIR=$APP/Contents/Developer" >> "$GITHUB_ENV"
+          xcodebuild -version
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Select simulator
+        run: |
+          UDID=$(python3 scripts/select_shot_simulator.py "${{ matrix.size }}")
+          echo "SIMULATOR_ID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Run design screenshot tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project AiMRemote.xcodeproj \
+            -scheme AiMRemote \
+            -destination "id=$SIMULATOR_ID" \
+            -resultBundlePath "$PWD/build/shots-${{ matrix.size }}.xcresult" \
+            -only-testing:AiMRemoteUITests/DesignShotTests \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Export screenshots
+        if: always()
+        run: |
+          python3 scripts/export_screenshots.py \
+            "build/shots-${{ matrix.size }}.xcresult" \
+            "build/screenshots/${{ matrix.size }}"
+          ls -la "build/screenshots/${{ matrix.size }}"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: AiM-Remote-test-results
-          run-id: ${{ inputs.run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: build/AiMRemote-tests.xcresult
-      - run: python3 scripts/export_screenshots.py build/AiMRemote-tests.xcresult build/screenshots
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AiM-Remote-screenshots
+          name: TechRabbitRemote-screenshots-${{ matrix.size }}
           path: build/screenshots
           if-no-files-found: error

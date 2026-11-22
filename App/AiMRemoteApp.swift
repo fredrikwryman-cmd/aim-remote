@@ -5,40 +5,36 @@ import UIKit
 @MainActor
 struct AiMRemoteApp: App {
     @StateObject private var connection = TVConnection()
-    @AppStorage("appearance") private var appearanceRaw = AppearanceMode.system.rawValue
+    @AppStorage("tr.remote.theme") private var appearanceRaw = AppearanceMode.system.rawValue
+    @AppStorage("tr.remote.onboarded") private var onboarded = false
     @Environment(\.scenePhase) private var scenePhase
-    @State private var launching = true
 
     var body: some Scene {
         WindowGroup {
             ZStack {
                 RemoteRoot(connection: connection)
-                if launching {
-                    LaunchView { endLaunch() }
-                        .transition(.opacity)
-                        .zIndex(1)
+                    .preferredColorScheme(AppearanceMode(rawValue: appearanceRaw)?.colorScheme)
+                if !onboarded {
+                    // R01 visas bara vid första start och är alltid mörk.
+                    StartView {
+                        if UIAccessibility.isReduceMotionEnabled {
+                            onboarded = true
+                        } else {
+                            withAnimation(.easeOut(duration: TR.Motion.themeSwap)) { onboarded = true }
+                        }
+                    }
+                    .transition(.opacity)
+                    .zIndex(1)
                 }
             }
-            .preferredColorScheme(AppearanceMode(rawValue: appearanceRaw)?.colorScheme)
             .task {
-                // Återanslutningen startar direkt. Startskärmen ligger bara ovanpå.
+                // Återanslutningen startar direkt, oavsett startskärmen.
                 connection.reconnectIfSaved()
-                try? await Task.sleep(nanoseconds: 1_600_000_000)
-                endLaunch()
             }
             .onChange(of: scenePhase) { phase in
                 if phase == .background { connection.disconnect() }
                 if phase == .active { connection.reconnectIfSaved() }
             }
-        }
-    }
-
-    private func endLaunch() {
-        guard launching else { return }
-        if UIAccessibility.isReduceMotionEnabled {
-            launching = false
-        } else {
-            withAnimation(.easeOut(duration: 0.35)) { launching = false }
         }
     }
 }

@@ -228,7 +228,7 @@ final class TVConnection: ObservableObject {
             AVAudioSession.sharedInstance().requestRecordPermission { continuation.resume(returning: $0) }
         }
         guard generation == token, ready else { return }
-        guard allowed else { notice = "Tillåt mikrofon för AiM Remote i iPhones inställningar."; return }
+        guard allowed else { notice = "Tillåt mikrofon för Tech Rabbit Remote i iPhones inställningar."; return }
         awaitingVoice = true
         send(RemoteExchange.key(.search))
         let item = DispatchWorkItem { [weak self] in
