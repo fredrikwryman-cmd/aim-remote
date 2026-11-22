@@ -1,8 +1,8 @@
 # Första testet på TCL 43P635
 
-Görs först när AiM Remote är installerad på iPhone. TV:n och iPhone använder redan samma wifi.
+Görs först när Tech Rabbit Remote är installerad på iPhone. TV:n och iPhone använder redan samma wifi.
 
-1. Slå på TV:n. Öppna AiM Remote och tillåt lokalt nätverk.
+1. Slå på TV:n. Öppna Tech Rabbit Remote och tillåt lokalt nätverk.
 2. Öppna **TV och anslutning**. Välj TV:n; om den saknas, ange TV:ns IP-adress.
 3. Tryck **Parkoppla med kod på TV:n**. Kontrollera att TV:n visar AiM Remote som klient. Skriv de sex tecknen.
 4. Kontrollera att status blir **Ansluten**, inte bara att anslutningssymbolen snurrar.

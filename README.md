@@ -1,6 +1,6 @@
-# AiM Remote
+# Tech Rabbit Remote
 
-En fristående iPhone-fjärr för TCL 43P635 med Android TV 11. Arbetsnamn: **AiM Remote**.
+En fristående iPhone-fjärr för TCL 43P635 med Android TV 11. Arbetsnamn: **Tech Rabbit Remote**.
 
 Två huvudvyer enligt användarens referenser: **Fjärr** och **Inställningar**. Mörk bakgrund, mjukt rundade knappar och grön markering. Anslutning, sifferknappar, tangentbord och hjälp öppnas som underordnade paneler. Ingen Apps- eller Touchpad-flik, reklam eller prenumeration.
 
@@ -26,7 +26,7 @@ Projektet har en GitHub Actions-arbetsgång som kör på en macOS-maskin. Den:
 3. bygger och kör app- och skärmtester i en iPhone-simulator,
 4. bygger en osignerad iPhone-app och paketerar `AiM-Remote-unsigned.ipa`.
 
-Arbetsgången finns under **Actions → Build AiM Remote for iPhone**. Den behöver ligga i ett GitHub-repository och kan startas med **Run workflow**. När den är grön finns IPA-filen i **Artifacts**. Ett källkodspaket eller en ZIP-fil är inte en installerad app.
+Arbetsgången finns under **Actions → Build Tech Rabbit Remote for iPhone**. Den behöver ligga i ett GitHub-repository och kan startas med **Run workflow**. När den är grön finns IPA-filen i **Artifacts**. Ett källkodspaket eller en ZIP-fil är inte en installerad app.
 
 ## Installera från Windows när IPA-filen finns
 

@@ -1,4 +1,4 @@
-# Status – AiM Remote
+# Status – Tech Rabbit Remote
 
 Uppdaterat 2026-10-19.
 
@@ -21,7 +21,7 @@ Uppdaterat 2026-10-19.
 ## Återstår
 
 - Signera och installera IPA-filen på användarens iPhone via Windows, exempelvis med Sideloadly. En osignerad IPA kan inte installeras direkt genom att öppna filen på iPhone.
-- Fysisk parkoppling och funktionstest med TCL 43P635. Ingen faktisk TV-anslutning har ännu gjorts från AiM Remote.
+- Fysisk parkoppling och funktionstest med TCL 43P635. Ingen faktisk TV-anslutning har ännu gjorts från Tech Rabbit Remote.
 - Bekräfta särskilt mikrofon, textinmatning, kanalknappar och väckning från standby på den verkliga TV:n och dess appar.
 
 ## Rättat under bygget
