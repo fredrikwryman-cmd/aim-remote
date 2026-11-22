@@ -1,4 +1,4 @@
-name: Build AiM Remote for iPhone
+name: Build Tech Rabbit Remote for iPhone
 on:
   workflow_dispatch:
   push:
@@ -8,12 +8,16 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-26
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Show toolchain
+      - name: Select Xcode
         run: |
+          APP=$(python3 scripts/select_xcode.py)
+          sudo xcode-select -s "$APP/Contents/Developer"
+          echo "DEVELOPER_DIR=$APP/Contents/Developer" >> "$GITHUB_ENV"
+          sw_vers
           xcodebuild -version
           swift --version
       - name: Protocol tests
@@ -23,19 +27,10 @@ jobs:
           brew install xcodegen
           xcodegen generate
       - name: Select iPhone simulator
-        run: |
-          python3 - <<'PY'
-          import json, os, subprocess
-          data = json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','--json']))
-          devices = [d for group in data['devices'].values() for d in group if 'iPhone' in d['name']]
-          if not devices:
-              raise SystemExit('No available iPhone simulator')
-          chosen = next((d for d in devices if 'iPhone 15' == d['name']), devices[0])
-          with open(os.environ['GITHUB_ENV'], 'a') as f:
-              f.write('SIMULATOR_ID=' + chosen['udid'] + '\n')
-          PY
+        run: python3 scripts/select_simulator.py >> "$GITHUB_ENV"
       - name: App and UI tests
         run: |
+          echo "Simulator: $SIMULATOR_NAME"
           xcodebuild test -project AiMRemote.xcodeproj -scheme AiMRemote \
             -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -resultBundlePath build/AiMRemote-tests.xcresult \

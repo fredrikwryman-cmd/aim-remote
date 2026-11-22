@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   testflight:
-    runs-on: macos-14
+    runs-on: macos-26
     timeout-minutes: 45
     env:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -41,13 +41,10 @@ jobs:
 
       - name: Select Xcode
         run: |
-          ls -1 /Applications | grep -i "^Xcode" || true
-          chosen=""
-          for candidate in /Applications/Xcode_15.4.app /Applications/Xcode_15*.app /Applications/Xcode_16*.app /Applications/Xcode.app; do
-            if [ -d "$candidate" ]; then chosen="$candidate"; break; fi
-          done
-          if [ -z "$chosen" ]; then echo "Ingen Xcode hittad" >&2; exit 1; fi
-          sudo xcode-select -s "$chosen/Contents/Developer"
+          APP=$(python3 scripts/select_xcode.py)
+          sudo xcode-select -s "$APP/Contents/Developer"
+          echo "DEVELOPER_DIR=$APP/Contents/Developer" >> "$GITHUB_ENV"
+          sw_vers
           xcodebuild -version
           swift --version
 
