@@ -11,3 +11,6 @@ DerivedData/
 *.key
 *.mobileprovision
 xcuserdata/
+__pycache__/
+*.pyc
+*.p8
