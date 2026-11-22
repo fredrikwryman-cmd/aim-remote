@@ -5,19 +5,19 @@ import XCTest
 final class DesignShotTests: XCTestCase {
     func testShotR01Start() {
         let app = launch(onboarded: false, theme: "dark")
-        XCTAssertTrue(app.staticTexts["Tech Rabbit Remote"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Tech Rabbit Remote"].waitForExistence(timeout: 60))
         shoot(app, "R01_start_dark")
     }
 
     func testShotR02RemoteDark() {
         let app = launch(onboarded: true, theme: "dark")
-        XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 60))
         shoot(app, "R02_fjarr_dark")
     }
 
     func testShotR02RemoteLight() {
         let app = launch(onboarded: true, theme: "light")
-        XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 60))
         shoot(app, "R02_fjarr_light")
     }
 

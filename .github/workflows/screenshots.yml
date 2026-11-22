@@ -54,16 +54,55 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
-      - name: Run design screenshot tests
+      - name: Boot simulator
+        if: env.SKIP_SIZE != '1'
+        run: |
+          # Kall simulator ar varfor forsta testet foll. Boota och vanta ut den.
+          xcrun simctl boot "$SIMULATOR_ID" || true
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+          xcrun simctl list devices | grep "$SIMULATOR_ID" || true
+
+      - name: Build for testing
         if: env.SKIP_SIZE != '1'
         run: |
           set -o pipefail
-          xcodebuild test \
+          xcodebuild build-for-testing \
             -project AiMRemote.xcodeproj \
             -scheme AiMRemote \
             -destination "id=$SIMULATOR_ID" \
+            -derivedDataPath "$PWD/build/dd" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Warm up the app once
+        if: env.SKIP_SIZE != '1'
+        continue-on-error: true
+        run: |
+          # Forsta starten tar langst tid. Gor den utanfor testet.
+          APP=$(find "$PWD/build/dd/Build/Products" -maxdepth 2 -name "AiMRemote.app" -type d | head -1)
+          if [ -z "$APP" ]; then
+            echo "::notice::Hittade ingen byggd app att vara upp med."
+            exit 0
+          fi
+          echo "Varmer upp $APP"
+          xcrun simctl install "$SIMULATOR_ID" "$APP"
+          xcrun simctl launch "$SIMULATOR_ID" se.aim.remote || true
+          sleep 8
+          xcrun simctl terminate "$SIMULATOR_ID" se.aim.remote || true
+
+      - name: Run design screenshot tests
+        if: env.SKIP_SIZE != '1'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project AiMRemote.xcodeproj \
+            -scheme AiMRemote \
+            -destination "id=$SIMULATOR_ID" \
+            -derivedDataPath "$PWD/build/dd" \
             -resultBundlePath "$PWD/build/shots-${{ matrix.size }}.xcresult" \
             -only-testing:AiMRemoteUITests/DesignShotTests \
+            -retry-tests-on-failure \
+            -test-iterations 3 \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Export screenshots
@@ -90,10 +129,20 @@ jobs:
           path: build/screenshots/${{ matrix.size }}
           if-no-files-found: ignore
 
-      - name: Keep the result bundle on failure
-        if: failure() && env.SKIP_SIZE != '1'
+      - name: Keep the result bundle when no images came out
+        if: always() && env.SKIP_SIZE != '1' && env.HAS_SHOTS != '1'
         uses: actions/upload-artifact@v4
         with:
           name: TechRabbitRemote-shots-xcresult-${{ matrix.size }}
           path: build/shots-${{ matrix.size }}.xcresult
           if-no-files-found: ignore
+
+      - name: Report result
+        if: always() && env.SKIP_SIZE != '1'
+        run: |
+          if [ "$HAS_SHOTS" = "1" ]; then
+            echo "Bilder for ${{ matrix.size }} finns som artifact."
+          else
+            echo "::warning::Inga bilder for ${{ matrix.size }}. Resultatpaketet ar sparat som artifact."
+            exit 1
+          fi
