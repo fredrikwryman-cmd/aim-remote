@@ -1,0 +1,143 @@
+name: Ad Hoc till Fredriks iPhone
+
+on:
+  workflow_dispatch:
+    inputs:
+      team_id:
+        description: Apple Developer Team ID
+        required: false
+        default: 99CF8F6HH4
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adhoc
+  cancel-in-progress: false
+
+env:
+  DEVICE_NAME: Fredrik iPhone 12
+  DEVICE_UDID: 00008101-000408DA0102001E
+  DEVICE_PLATFORM: IOS
+
+jobs:
+  adhoc:
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      TEAM_ID_INPUT: ${{ inputs.team_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        run: |
+          missing=""
+          [ -n "$ASC_KEY_ID" ] || missing="$missing ASC_KEY_ID"
+          [ -n "$ASC_ISSUER_ID" ] || missing="$missing ASC_ISSUER_ID"
+          [ -n "$ASC_KEY_P8" ] || missing="$missing ASC_KEY_P8"
+          if [ -n "$missing" ]; then
+            echo "Saknade GitHub Secrets:$missing" >&2
+            exit 1
+          fi
+          echo "Alla tre secrets finns."
+
+      - name: Select Xcode
+        run: |
+          APP=$(python3 scripts/select_xcode.py)
+          sudo xcode-select -s "$APP/Contents/Developer"
+          echo "DEVELOPER_DIR=$APP/Contents/Developer" >> "$GITHUB_ENV"
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Install API key
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          python3 "$GITHUB_WORKSPACE/scripts/write_asc_key.py" "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Install API dependencies
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check --break-system-packages pyjwt cryptography
+
+      - name: Register device
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/asc_register_device.py" \
+            "$DEVICE_UDID" "$DEVICE_NAME" "$DEVICE_PLATFORM"
+
+      - name: Resolve team ID
+        run: |
+          if [ -n "$TEAM_ID_INPUT" ]; then
+            echo "Anvander angivet team: $TEAM_ID_INPUT"
+            echo "DEVELOPMENT_TEAM=$TEAM_ID_INPUT" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          python3 "$GITHUB_WORKSPACE/scripts/asc_team_id.py" >> "$GITHUB_ENV"
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Archive
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project AiMRemote.xcodeproj \
+            -scheme AiMRemote \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$PWD/build/AiMRemote.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+
+      - name: Export ad hoc IPA
+        run: |
+          set -o pipefail
+          python3 "$GITHUB_WORKSPACE/scripts/adhoc_export_options.py" build/AdHocExportOptions.plist
+          cat build/AdHocExportOptions.plist
+          xcodebuild -exportArchive \
+            -archivePath "$PWD/build/AiMRemote.xcarchive" \
+            -exportOptionsPlist build/AdHocExportOptions.plist \
+            -exportPath "$PWD/build/adhoc" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          ls -la build/adhoc
+
+      - name: Verify IPA and embedded profile
+        run: |
+          set -o pipefail
+          IPA=$(ls build/adhoc/*.ipa | head -1)
+          echo "IPA: $IPA"
+          rm -rf build/verify
+          mkdir -p build/verify
+          unzip -q "$IPA" -d build/verify
+          APP=$(ls -d build/verify/Payload/*.app | head -1)
+          echo "App: $APP"
+          python3 "$GITHUB_WORKSPACE/scripts/check_adhoc_build.py" "$APP" "$DEVICE_UDID"
+          codesign -dv --verbose=2 "$APP" 2>&1 | sed -n "1,12p"
+
+      - name: Upload IPA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TechRabbitRemote-adhoc
+          path: build/adhoc
+          if-no-files-found: ignore
+
+      - name: Remove API key
+        if: always()
+        run: rm -f "$HOME/.appstoreconnect/private_keys/"AuthKey_*.p8
