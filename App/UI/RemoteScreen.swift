@@ -89,7 +89,7 @@ struct RemoteScreen: View {
                 longPress: useSystemTheme
             )
             TRIconButton(icon: "tv", variant: .ghost, label: "Välj TV") {
-                openPanel(.connection)
+                openPanel(.chooseTV)
             }
             .padding(.leading, 4)
         }
@@ -110,7 +110,7 @@ struct RemoteScreen: View {
             TRStatusPill(title: state.pill) {
                 switch state {
                 case .connected: connection.disconnect()
-                default: openPanel(.connection)
+                default: openPanel(.chooseTV)
                 }
             }
             .accessibilityLabel(state.pill)

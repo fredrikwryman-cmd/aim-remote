@@ -1,6 +1,37 @@
 import SwiftUI
 import UIKit
 
+enum AppearanceMode: String, CaseIterable, Identifiable {
+    case system, light, dark
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .system: return "Automatiskt"
+        case .light: return "Ljust"
+        case .dark: return "Mörkt"
+        }
+    }
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
+extension Color {
+    init(hex: UInt32, opacity: Double = 1) {
+        self.init(
+            .sRGB,
+            red: Double((hex >> 16) & 0xFF) / 255,
+            green: Double((hex >> 8) & 0xFF) / 255,
+            blue: Double(hex & 0xFF) / 255,
+            opacity: opacity
+        )
+    }
+}
+
 // Tokens ur designpaketets tokens.json (Tech Rabbit Remote v1).
 // Referens 390 x 844 pt. Alla mått är fasta pt-värden.
 
