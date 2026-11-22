@@ -43,17 +43,7 @@ Generate. Ladda ner `AuthKey_XXXXXXXXXX.p8` — den går bara att hämta en gån
 Skriv av **Key ID** (10 tecken) och **Issuer ID** (ser ut som en UUID) från
 samma sida.
 
-### 4. Koda om nyckeln till base64
-
-I PowerShell på Windows, med rätt filnamn:
-
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\Downloads\AuthKey_XXXXXXXXXX.p8")) | Set-Clipboard
-```
-
-Värdet ligger nu i urklipp.
-
-### 5. Lägg in tre secrets i GitHub
+### 4. Lägg in tre secrets i GitHub
 
 github.com/fredrikwryman-cmd/aim-remote → **Settings** → **Secrets and
 variables** → **Actions** → **New repository secret**, en gång per rad:
@@ -62,15 +52,20 @@ variables** → **Actions** → **New repository secret**, en gång per rad:
 | --- | --- |
 | `ASC_KEY_ID` | Key ID från steg 3 |
 | `ASC_ISSUER_ID` | Issuer ID från steg 3 |
-| `ASC_KEY_P8` | base64-strängen från steg 4 |
+| `ASC_KEY_P8` | hela innehållet i `.p8`-filen, som ren text |
+
+Öppna `.p8`-filen i Anteckningar, markera allt och klistra in precis som det
+står, inklusive raderna `-----BEGIN PRIVATE KEY-----` och
+`-----END PRIVATE KEY-----`. Inget ska kodas om.
 
 ## Varje gång du vill ha ett nytt bygge
 
 1. github.com/fredrikwryman-cmd/aim-remote → **Actions** → **Upload to
    TestFlight** → **Run workflow**.
-2. Branch: `main`. Fältet **Team ID** lämnas tomt; workflowen hämtar teamet via
-   API-nyckeln. Hittar den inget avbryter den och säger att fältet ska fyllas i
-   — Team ID står under *Membership details* på developer.apple.com.
+2. Branch: `main`. Fyll i fältet **Team ID** med ditt Team ID — det står under
+   *Membership details* på developer.apple.com. Lämnas det tomt försöker
+   workflowen hämta teamet via API-nyckeln, men första gången finns sällan
+   något certifikat att läsa det ur, så fyll i det.
 3. **Run workflow**.
 
 Build-numret sätts automatiskt till körningens nummer (`github.run_number`), så
