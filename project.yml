@@ -28,6 +28,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: se.aim.remote
         INFOPLIST_FILE: App/Info.plist
         PRODUCT_NAME: AiMRemote
+        TARGETED_DEVICE_FAMILY: '1'
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         'CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]': App/Simulator.entitlements
     dependencies:
