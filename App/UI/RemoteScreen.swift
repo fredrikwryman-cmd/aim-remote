@@ -138,21 +138,26 @@ struct RemoteScreen: View {
             HStack(spacing: 10) {
                 TRRocker(title: "Kanal", upLabel: "Nästa kanal", downLabel: "Föregående kanal",
                          up: { connection.press(.channelUp) }, down: { connection.press(.channelDown) })
+                    .disabled(!connection.ready)
                 VStack(spacing: 10) {
                     HStack(spacing: 10) {
                         smallKey("list.bullet.rectangle", "Öppna menyn", width: smallKeyWidth) { connection.press(.guide) }
+                            .disabled(!connection.ready)
                         smallKey("speaker.slash", "Stäng av ljudet", width: smallKeyWidth) { connection.press(.mute) }
+                            .disabled(!connection.ready)
                     }
                     HStack(spacing: 10) {
                         smallKey("gearshape", "TV:ns inställningar", width: smallKeyWidth) { connection.press(.settings) }
+                            .disabled(!connection.ready)
+                        // Tangentbordet öppnar en panel i appen och behöver ingen TV.
                         smallKey("keyboard", "Öppna tangentbord", width: smallKeyWidth) { openPanel(.keyboard) }
                     }
                 }
                 .frame(width: middle)
                 TRRocker(title: "Volym", upLabel: "Höj volymen", downLabel: "Sänk volymen",
                          up: { connection.press(.volumeUp) }, down: { connection.press(.volumeDown) })
+                    .disabled(!connection.ready)
             }
-            .disabled(!connection.ready)
 
             // D-pad: 3 x 82 kolumner, 3 x 72 rader, gap 10.
             VStack(spacing: 0) {
@@ -162,9 +167,11 @@ struct RemoteScreen: View {
                     } label: {
                         Text("123").font(TR.Font.number)
                     }
+                    // Sifferpanelen öppnas i appen och behöver ingen TV.
                     .accessibilityLabel("Sifferknappar")
 
                     dpadKey("chevron.up", "Upp") { connection.press(.up) }
+                        .disabled(!connection.ready)
 
                     TRGhostButton(width: TR.Size.dpadColumn, height: TR.Size.dpadRow) {
                         Task { await connection.toggleVoice() }
@@ -174,12 +181,16 @@ struct RemoteScreen: View {
                             .foregroundStyle(connection.recording ? TR.Colors.of(scheme).power : TR.Colors.of(scheme).text)
                     }
                     .accessibilityLabel(connection.recording ? "Stoppa röststyrning" : "Röststyrning")
+                    .disabled(!connection.ready)
                 }
                 dpadRow {
                     dpadKey("chevron.left", "Vänster") { connection.press(.left) }
+                        .disabled(!connection.ready)
                     TROkKey { connection.press(.ok) }
                         .frame(width: TR.Size.dpadColumn, height: TR.Size.dpadRow)
+                        .disabled(!connection.ready)
                     dpadKey("chevron.right", "Höger") { connection.press(.right) }
+                        .disabled(!connection.ready)
                 }
                 dpadRow {
                     TRGhostButton(width: TR.Size.dpadColumn, height: TR.Size.dpadRow) {
@@ -188,8 +199,10 @@ struct RemoteScreen: View {
                         Image(systemName: "arrow.left").font(.system(size: 24))
                     }
                     .accessibilityLabel("Gå tillbaka")
+                    .disabled(!connection.ready)
 
                     dpadKey("chevron.down", "Ned") { connection.press(.down) }
+                        .disabled(!connection.ready)
 
                     TRGhostButton(width: TR.Size.dpadColumn, height: TR.Size.dpadRow) {
                         connection.press(.home)
@@ -197,9 +210,9 @@ struct RemoteScreen: View {
                         Image(systemName: "house").font(.system(size: 24))
                     }
                     .accessibilityLabel("Till startsidan")
+                    .disabled(!connection.ready)
                 }
             }
-            .disabled(!connection.ready)
 
             // Mediarad: fyra lika breda tangenter, höjd 44, gap 8.
             HStack(spacing: 8) {

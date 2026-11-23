@@ -12,8 +12,10 @@ enum MainTab { case remote, settings }
 @MainActor
 struct RemoteRoot: View {
     @ObservedObject var connection: TVConnection
+    /// Utseendet ägs av AiMRemoteApp, som sätter preferredColorScheme. En egen
+    /// @AppStorage här gjorde att skrivningen aldrig nådde dit.
+    @Binding var appearanceRaw: String
     @AppStorage("tr.remote.haptics") private var haptics = true
-    @AppStorage("tr.remote.theme") private var appearanceRaw = AppearanceMode.system.rawValue
     @State private var tab: MainTab = .remote
     @State private var panel: Panel?
     @Environment(\.colorScheme) private var scheme
