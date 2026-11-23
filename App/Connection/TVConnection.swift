@@ -96,7 +96,7 @@ final class TVConnection: ObservableObject {
         do {
             identity = try IdentityStore.loadOrCreate()
             let saved = store.tv(host: clean)
-            let pin = saved?.fingerprint ?? (try TrustStore.read(host: clean))
+            let pin = try saved?.fingerprint ?? TrustStore.read(host: clean)
             if pin == nil && !pair {
                 status = "TV:n behöver parkopplas"; notice = "Tryck på Parkoppla och ange koden som visas på TV:n."
                 return
