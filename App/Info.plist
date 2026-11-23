@@ -14,7 +14,6 @@
         <key>UIApplicationSupportsMultipleScenes</key><false/>
     </dict>
     <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
-    <key>UIUserInterfaceStyle</key><string>Dark</string>
     <key>NSLocalNetworkUsageDescription</key><string>Tech Rabbit Remote använder ditt lokala nätverk för att hitta och styra din TV.</string>
     <key>NSBonjourServices</key><array><string>_androidtvremote2._tcp</string></array>
     <key>NSMicrophoneUsageDescription</key><string>Tech Rabbit Remote skickar din röst till TV:n när du startar mikrofonen.</string>

@@ -82,9 +82,9 @@ struct RemoteScreen: View {
             Spacer(minLength: 8)
 
             TRIconButton(
-                icon: scheme == .dark ? "sun.max" : "moon",
+                icon: themeScheme == .dark ? "sun.max" : "moon",
                 variant: .flat,
-                label: scheme == .dark ? "Byt till ljust utseende" : "Byt till mörkt utseende",
+                label: themeScheme == .dark ? "Byt till ljust utseende" : "Byt till mörkt utseende",
                 action: toggleTheme,
                 longPress: useSystemTheme
             )
@@ -265,8 +265,18 @@ struct RemoteScreen: View {
 
     // MARK: - Tema
 
+    /// Temaknappen visar det valda läget. Bara vid Automatiskt beror den på
+    /// omgivningen, som annars kan släpa efter en skrivning.
+    private var themeScheme: ColorScheme {
+        switch AppearanceMode(rawValue: appearanceRaw) ?? .system {
+        case .light: return .light
+        case .dark: return .dark
+        case .system: return scheme
+        }
+    }
+
     private func toggleTheme() {
-        appearanceRaw = (scheme == .dark ? AppearanceMode.light : AppearanceMode.dark).rawValue
+        appearanceRaw = (themeScheme == .dark ? AppearanceMode.light : AppearanceMode.dark).rawValue
     }
 
     private func useSystemTheme() {
