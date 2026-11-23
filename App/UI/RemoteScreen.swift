@@ -85,7 +85,8 @@ struct RemoteScreen: View {
                 icon: themeScheme == .dark ? "sun.max" : "moon",
                 variant: .flat,
                 label: themeScheme == .dark ? "Byt till ljust utseende" : "Byt till mörkt utseende",
-                action: toggleTheme
+                action: toggleTheme,
+                longPress: useSystemTheme
             )
             TRIconButton(icon: "tv", variant: .ghost, label: "Välj TV") {
                 openPanel(.chooseTV)
@@ -274,10 +275,17 @@ struct RemoteScreen: View {
         }
     }
 
-    // Inget långtryck här: en LongPressGesture bredvid knappen gör att
-    // trycket inte når action. Automatiskt väljs i Inställningar - Utseende.
     private func toggleTheme() {
         appearanceRaw = (themeScheme == .dark ? AppearanceMode.light : AppearanceMode.dark).rawValue
+    }
+
+    private func useSystemTheme() {
+        appearanceRaw = AppearanceMode.system.rawValue
+        withAnimation(.easeOut(duration: 0.2)) { toast = "Utseende: Automatiskt" }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            withAnimation(.easeOut(duration: 0.2)) { toast = nil }
+        }
     }
 
 
