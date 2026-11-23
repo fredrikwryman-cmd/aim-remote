@@ -30,8 +30,8 @@ struct ChooseTVPanel: View {
 
                 if connection.savedTVs.isEmpty && discovered.isEmpty {
                     Text("Inga TV-apparater hittades på nätverket")
-                        .font(TR.Font.row)
-                        .foregroundStyle(colors.muted)
+                        .font(TR.Font.body)
+                        .foregroundStyle(colors.textSecondary)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 28)
@@ -59,9 +59,9 @@ struct ChooseTVPanel: View {
                             }
                             if !discovered.isEmpty {
                                 Text("NYA PÅ NÄTVERKET")
-                                    .font(.custom("Archivo-SemiBold", size: 12))
+                                    .font(.system(size: 12, weight: .semibold))
                                     .tracking(0.3)
-                                    .foregroundStyle(colors.muted)
+                                    .foregroundStyle(colors.textSecondary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal, 14)
                                     .padding(.top, 14)
@@ -90,7 +90,7 @@ struct ChooseTVPanel: View {
                     if connection.needsRepair {
                         Text("TV:n visade ett annat certifikat än den sparade. Parkoppla igen om det är din TV.")
                             .font(TR.Font.caption)
-                            .foregroundStyle(colors.power)
+                            .foregroundStyle(colors.danger)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 14)
                             .padding(.top, 10)
@@ -165,18 +165,18 @@ struct ChooseTVPanel: View {
             HStack(spacing: 14) {
                 Image(systemName: "tv")
                     .font(.system(size: 22))
-                    .foregroundStyle(colors.text)
+                    .foregroundStyle(colors.textPrimary)
                     .frame(width: 26)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(name)
-                        .font(.custom(selected ? "Archivo-Bold" : "Archivo-Regular", size: 16))
+                        .font(.system(size: 16, weight: selected ? .bold : .regular))
                         .trLabelScaling()
-                        .foregroundStyle(colors.text)
+                        .foregroundStyle(colors.textPrimary)
                         .lineLimit(1)
                     if !saved {
                         Text(detail)
                             .font(TR.Font.caption)
-                            .foregroundStyle(colors.muted)
+                            .foregroundStyle(colors.textSecondary)
                             .lineLimit(1)
                     }
                 }
@@ -184,16 +184,16 @@ struct ChooseTVPanel: View {
                 if selected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(colors.greenText)
+                        .foregroundStyle(colors.accentText)
                 }
             }
             .padding(.horizontal, 14)
             .frame(height: TR.Size.sheetRow)
             .background {
                 if selected {
-                    shape.fill(Color(hex: 0x1ED63C, opacity: 0.14))
-                        .overlay(shape.stroke(colors.green, lineWidth: 1.5))
-                        .shadow(color: colors.green.opacity(0.35), radius: 8)
+                    shape.fill(colors.accent.opacity(0.16))
+                        .overlay(shape.stroke(colors.accent, lineWidth: 1.5))
+                        .shadow(color: colors.accent.opacity(0.35), radius: 8)
                 }
             }
             .contentShape(Rectangle())
@@ -207,11 +207,11 @@ struct ChooseTVPanel: View {
         let colors = TR.Colors.of(scheme)
         return VStack(alignment: .leading, spacing: 8) {
             Text("Ange koden som visas på TV:n")
-                .font(TR.Font.rowValue)
-                .foregroundStyle(colors.muted)
+                .font(TR.Font.body)
+                .foregroundStyle(colors.textSecondary)
             TextField("Sex tecken, t.ex. A1B2C3", text: $code)
-                .font(.custom("Archivo-SemiBold", size: 20))
-                .foregroundStyle(colors.text)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(colors.textPrimary)
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()
                 .keyboardType(.asciiCapable)
@@ -222,10 +222,10 @@ struct ChooseTVPanel: View {
                 }
                 .padding(.horizontal, 14)
                 .frame(height: 52)
-                .background(colors.keyFlat, in: RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous))
+                .background(colors.surfaceElevated, in: RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous)
-                        .stroke(code.count == 6 ? colors.green : colors.line, lineWidth: code.count == 6 ? 2 : 1)
+                        .stroke(code.count == 6 ? colors.accent : colors.line, lineWidth: code.count == 6 ? 2 : 1)
                 )
                 .accessibilityLabel("Kod, sex tecken, \(code.count) av 6 ifyllda")
         }
@@ -252,10 +252,10 @@ struct SwipeToForget<Content: View>: View {
                 onForget()
             } label: {
                 Text("Glöm")
-                    .font(TR.Font.status)
+                    .font(TR.Font.body)
                     .foregroundStyle(.white)
                     .frame(width: width, height: TR.Size.sheetRow)
-                    .background(colors.power, in: RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous))
+                    .background(colors.danger, in: RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous))
             }
             .buttonStyle(TRPressStyle())
             .opacity(offset < -8 ? 1 : 0)
@@ -319,9 +319,9 @@ struct ConnectionPanel: View {
                     .trCard()
 
                     Text("MANUELL ADRESS")
-                        .font(.custom("Archivo-SemiBold", size: 13))
+                        .font(.system(size: 13, weight: .semibold))
                         .tracking(0.3)
-                        .foregroundStyle(colors.muted)
+                        .foregroundStyle(colors.textSecondary)
                         .padding(.leading, 4)
 
                     VStack(spacing: 10) {
@@ -337,8 +337,8 @@ struct ConnectionPanel: View {
                                 Image(systemName: "link")
                                 Text("Parkoppla med kod på TV:n")
                             }
-                            .font(TR.Font.row)
-                            .foregroundStyle(colors.greenText)
+                            .font(TR.Font.body)
+                            .foregroundStyle(colors.accentText)
                             .frame(maxWidth: .infinity)
                             .frame(height: 44)
                         }
@@ -350,8 +350,8 @@ struct ConnectionPanel: View {
 
                     if connection.ready {
                         Button("Koppla från") { connection.disconnect() }
-                            .font(TR.Font.row)
-                            .foregroundStyle(colors.power)
+                            .font(TR.Font.body)
+                            .foregroundStyle(colors.danger)
                             .frame(maxWidth: .infinity)
                             .frame(height: 44)
                     }
@@ -362,14 +362,14 @@ struct ConnectionPanel: View {
                     }
 
                     Button("Glöm \(connection.tvName)") { confirmForget = true }
-                        .font(TR.Font.row)
-                        .foregroundStyle(colors.power)
+                        .font(TR.Font.body)
+                        .foregroundStyle(colors.danger)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
 
                     Text("TV:n kan behöva vara påslagen vid anslutning. Väcka från standby beror på TV:ns nätverksinställningar.")
                         .font(TR.Font.caption)
-                        .foregroundStyle(colors.muted)
+                        .foregroundStyle(colors.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 4)
                 }
@@ -397,11 +397,11 @@ struct ConnectionPanel: View {
     private func field(_ title: String, text: Binding<String>, mono: Bool = false) -> some View {
         let colors = TR.Colors.of(scheme)
         return TextField(title, text: text)
-            .font(mono ? .system(size: 14).monospaced() : TR.Font.row)
-            .foregroundStyle(colors.text)
+            .font(mono ? .system(size: 14).monospaced() : TR.Font.body)
+            .foregroundStyle(colors.textPrimary)
             .padding(.horizontal, 14)
             .frame(height: 48)
-            .background(colors.keyFlat, in: RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous))
+            .background(colors.surfaceElevated, in: RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous)
                     .stroke(colors.line, lineWidth: 1)
@@ -434,27 +434,27 @@ struct NumberPadPanel: View {
                     HStack(spacing: 10) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 17))
-                            .foregroundStyle(colors.power)
+                            .foregroundStyle(colors.danger)
                         Text("Inte ansluten. Siffran skickades inte.")
-                            .font(TR.Font.rowValue)
-                            .foregroundStyle(colors.text)
+                            .font(TR.Font.body)
+                            .foregroundStyle(colors.textPrimary)
                         Spacer(minLength: 4)
                         Button {
                             openPanel(.chooseTV)
                         } label: {
                             Text("Anslut")
-                                .font(TR.Font.status)
-                                .foregroundStyle(colors.greenText)
+                                .font(TR.Font.body)
+                                .foregroundStyle(colors.accentText)
                                 .padding(.horizontal, 14)
                                 .frame(height: 32)
-                                .background(colors.pill, in: Capsule())
+                                .background(colors.accent.opacity(0.16), in: Capsule())
                         }
                         .buttonStyle(TRPressStyle())
                         .accessibilityLabel("Anslut till TV")
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(colors.power.opacity(0.08),
+                    .background(colors.danger.opacity(0.08),
                                 in: RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous))
                 }
 
@@ -483,7 +483,7 @@ struct NumberPadPanel: View {
                         TRKey(width: nil, height: 48, radius: TR.Radius.smallKey) {
                             connection.press(.ok)
                         } label: {
-                            Text("OK").font(TR.Font.ok)
+                            Text("OK").font(.system(size: 21, weight: .bold))
                         }
                         .frame(maxWidth: .infinity)
                         .accessibilityLabel("Bekräfta nummer")
@@ -498,7 +498,7 @@ struct NumberPadPanel: View {
 
     private func numberKey(_ title: String, label: String, action: @escaping () -> Void) -> some View {
         TRKey(width: nil, height: 48, radius: TR.Radius.smallKey, action: action) {
-            Text(title).font(TR.Font.number)
+            Text(title).font(TR.Font.numeric)
         }
         .frame(maxWidth: .infinity)
         .accessibilityLabel(label)
@@ -525,24 +525,24 @@ struct KeyboardPanel: View {
                 PanelNotice(connection: connection)
 
                 Text("Markera först sökfältet eller textfältet på TV:n.")
-                    .font(TR.Font.rowValue)
-                    .foregroundStyle(colors.muted)
+                    .font(TR.Font.body)
+                    .foregroundStyle(colors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 // iPhones returtangent är medvetet inte kopplad: texten skickas
                 // bara med Skicka text.
                 TextField("Text till TV:n", text: $text, axis: .vertical)
-                    .font(TR.Font.row)
-                    .foregroundStyle(colors.text)
+                    .font(TR.Font.body)
+                    .foregroundStyle(colors.textPrimary)
                     .lineLimit(1...4)
                     .focused($focused)
                     .autocorrectionDisabled()
                     .padding(.horizontal, 14)
                     .padding(.vertical, 14)
-                    .background(colors.keyFlat, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(colors.surfaceElevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(focused ? colors.green : colors.line, lineWidth: focused ? 2 : 1)
+                            .stroke(focused ? colors.accent : colors.line, lineWidth: focused ? 2 : 1)
                     )
 
                 HStack(spacing: 8) {
@@ -608,13 +608,13 @@ struct HelpPanel: View {
                     ForEach(sections, id: \.0) { section in
                         VStack(alignment: .leading, spacing: 10) {
                             Text(section.0)
-                                .font(.custom("Archivo-ExtraBold", size: 18))
+                                .font(.system(size: 18, weight: .heavy))
                                 .trLabelScaling()
-                                .foregroundStyle(colors.text)
+                                .foregroundStyle(colors.textPrimary)
                             ForEach(section.1, id: \.self) { paragraph in
                                 Text(paragraph)
-                                    .font(TR.Font.rowValue)
-                                    .foregroundStyle(colors.muted)
+                                    .font(TR.Font.body)
+                                    .foregroundStyle(colors.textSecondary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
@@ -623,8 +623,8 @@ struct HelpPanel: View {
                         .trCard()
                     }
                     Button("Klart") { onClose() }
-                        .font(TR.Font.row)
-                        .foregroundStyle(colors.greenText)
+                        .font(TR.Font.body)
+                        .foregroundStyle(colors.accentText)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
                 }

@@ -101,12 +101,13 @@ struct RemoteWidgetView: View {
     var entry: RemoteEntry
     @Environment(\.widgetFamily) private var family
 
-    private let text = Color(red: 0.95, green: 0.95, blue: 0.95)
-    private let muted = Color(red: 0.60, green: 0.65, blue: 0.62)
-    private let green = Color(red: 0.118, green: 0.839, blue: 0.235)
-    private let keyTop = Color(red: 0.110, green: 0.165, blue: 0.125)
-    private let keyBottom = Color(red: 0.067, green: 0.102, blue: 0.078)
-    private let line = Color.white.opacity(0.08)
+    // Facit sid 5, mörka tokens.
+    private let text = Color(red: 0.949, green: 0.961, blue: 0.969)        // #F2F5F7
+    private let muted = Color(red: 0.604, green: 0.647, blue: 0.682)       // #9AA5AE
+    private let green = Color(red: 0.169, green: 0.890, blue: 0.435)       // #2BE36F
+    private let keyTop = Color(red: 0.169, green: 0.208, blue: 0.235)      // #2B353C
+    private let keyBottom = Color(red: 0.090, green: 0.122, blue: 0.145)   // #171F25
+    private let line = Color.white.opacity(0.07)
 
     var body: some View {
         VStack(alignment: .leading, spacing: family == .systemSmall ? 10 : 14) {
@@ -213,8 +214,8 @@ struct TechRabbitWidget: Widget {
                 RemoteWidgetView(entry: entry)
                     .containerBackground(for: .widget) {
                         LinearGradient(
-                            colors: [Color(red: 0.039, green: 0.102, blue: 0.055),
-                                     Color(red: 0.020, green: 0.047, blue: 0.027)],
+                            colors: [Color(red: 0.078, green: 0.110, blue: 0.129),
+                                     Color(red: 0.027, green: 0.063, blue: 0.082)],
                             startPoint: .top, endPoint: .bottom
                         )
                     }

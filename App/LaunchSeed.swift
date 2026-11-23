@@ -1,14 +1,15 @@
 import Foundation
 
-/// UI-testerna startar appen med `-tr.remote.theme light` och liknande. Sådana
+/// UI-testerna startar appen med `-tr.remote.onboarded NO` och liknande. Sådana
 /// värden hamnar i NSArgumentDomain, som ligger före appens egen domän vid
-/// läsning. Skriver appen sedan ett nytt värde (temaknappen) går det till den
-/// egna domänen och läses aldrig tillbaka, så gränssnittet fastnar i
-/// startläget. Därför flyttas värdena in i den egna domänen en gång vid start,
-/// varefter argumentdomänen tas bort. Utan startargument görs ingenting.
+/// läsning. Skriver appen sedan ett nytt värde går det till den egna domänen
+/// och läses aldrig tillbaka, så gränssnittet fastnar i startläget. Därför
+/// flyttas värdena in i den egna domänen en gång vid start, varefter
+/// argumentdomänen tas bort. Utan startargument görs ingenting.
+/// Temat är inte med här: appen följer telefonens ljusa eller mörka läge.
 enum LaunchSeed {
     private static let boolKeys = ["tr.remote.onboarded", "tr.remote.haptics"]
-    private static let stringKeys = ["tr.remote.theme"]
+    private static let stringKeys: [String] = []
 
     static func apply(
         defaults: UserDefaults = .standard,

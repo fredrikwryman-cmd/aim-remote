@@ -1,33 +1,31 @@
 import SwiftUI
 
-// R03 Inställningar. Mått enligt SPEC §R03, ljust läge samma layout med
-// light-tokens. Ingen Enheter-rad (byggs inte).
+// Inställningar, ritad efter facit sid 3 (ljust) och sid 4 (mörkt).
+// Ingen Utseende-rad: appen följer telefonens läge.
 @MainActor
 struct SettingsScreen: View {
     @ObservedObject var connection: TVConnection
     @Binding var haptics: Bool
-    @Binding var appearanceRaw: String
     var openPanel: (Panel) -> Void
 
     @Environment(\.colorScheme) private var scheme
-
-    private var appearance: AppearanceMode { AppearanceMode(rawValue: appearanceRaw) ?? .system }
 
     var body: some View {
         let colors = TR.Colors.of(scheme)
         ScrollView {
             VStack(spacing: 0) {
                 Text("Inställningar")
-                    .font(TR.Font.screenTitle)
+                    .font(TR.Font.largeTitle)
                     .trLabelScaling()
-                    .foregroundStyle(colors.text)
+                    .foregroundStyle(colors.textPrimary)
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 23)
+                    .padding(.top, 15)
 
-                hero.padding(.top, 18)
+                hero.padding(.top, 21)
 
                 VStack(spacing: 0) {
-                    SettingsRow(icon: "tv", title: "TV och anslutning", value: connection.tvName) {
+                    SettingsRow(icon: "tv", title: "TV och anslutning",
+                                value: connection.ready ? connection.tvName : "Välj TV") {
                         openPanel(.connection)
                     }
                     TRDivider()
@@ -42,21 +40,18 @@ struct SettingsScreen: View {
                         accessory: {
                             Toggle("Knappvibration", isOn: $haptics)
                                 .labelsHidden()
-                                .tint(colors.green)
+                                .tint(colors.accent)
                         }
                     )
-                    TRDivider()
-                    SettingsRow(icon: "circle.lefthalf.filled", title: "Utseende", value: appearance.title) {
-                        openPanel(.appearance)
-                    }
                 }
                 .trCard()
-                .padding(.top, 18)
+                .padding(.top, 22)
 
                 Text("v0.1.0 · Testversion")
-                    .font(TR.Font.keyLabel)
-                    .foregroundStyle(colors.muted)
-                    .padding(.top, 18)
+                    .font(TR.Font.caption)
+                    .trLabelScaling()
+                    .foregroundStyle(colors.textSecondary)
+                    .padding(.top, 23)
 
                 Spacer(minLength: 24)
             }
@@ -64,104 +59,45 @@ struct SettingsScreen: View {
         }
     }
 
-    // Hero-kort: 104 högt, radie 28, grön gradient 135 grader.
+    // Kortet: grön appikon, namn och undertext. Ingen chevron i facit.
     private var hero: some View {
         let colors = TR.Colors.of(scheme)
         let shape = RoundedRectangle(cornerRadius: TR.Radius.hero, style: .continuous)
+        let tile = RoundedRectangle(cornerRadius: TR.Radius.heroIcon, style: .continuous)
         return Button {
             openPanel(.help)
         } label: {
-            HStack(spacing: 14) {
-                TRSymbol(width: 46)
+            HStack(spacing: 18) {
+                Image(systemName: "appletvremote.gen4.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(colors.accent)
+                    .frame(width: TR.Size.heroIcon, height: TR.Size.heroIcon)
+                    .background(tile.fill(colors.accent.opacity(scheme == .dark ? 0.16 : 0.20)))
+                    .overlay(tile.stroke(colors.accent.opacity(0.30), lineWidth: 1))
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Tech Rabbit Remote")
-                        .font(TR.Font.heroTitle)
+                        .font(TR.Font.cardTitle)
                         .trLabelScaling()
-                        .foregroundStyle(colors.text)
+                        .foregroundStyle(colors.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                     Text("Din TV. Din kontroll.")
-                        .font(TR.Font.keyLabel)
+                        .font(TR.Font.body)
                         .trLabelScaling()
-                        .foregroundStyle(colors.mutedOnHero)
+                        .foregroundStyle(colors.textSecondary)
+                        .lineLimit(1)
                 }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(colors.text)
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, TR.Size.heroPadding)
             .frame(maxWidth: .infinity)
-            .frame(height: 104)
-            .background(
-                LinearGradient(
-                    colors: [Color(hex: 0x1ED63C, opacity: 0.42), Color(hex: 0x1ED63C, opacity: 0.08)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                ),
-                in: shape
-            )
-            .overlay(shape.stroke(Color(hex: 0x1CF038, opacity: 0.4), lineWidth: 1))
-            .shadow(color: Color(hex: 0x1ED63C, opacity: 0.15), radius: 15, y: 10)
+            .frame(height: TR.Size.heroCard)
+            .background(shape.fill(colors.panel))
+            .overlay(shape.stroke(colors.line, lineWidth: 1))
             .contentShape(shape)
         }
         .buttonStyle(TRPressStyle())
         .accessibilityLabel("Tech Rabbit Remote, Din TV. Din kontroll.")
-    }
-}
-
-// Utseende: Ljust, Mörkt, Automatiskt med bock vid valt läge.
-@MainActor
-struct AppearancePanel: View {
-    @Binding var appearanceRaw: String
-    var onClose: () -> Void
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private let order: [AppearanceMode] = [.light, .dark, .system]
-
-    var body: some View {
-        let colors = TR.Colors.of(scheme)
-        GlassSheet(title: "Utseende", top: 220, onClose: onClose) {
-            VStack(spacing: 0) {
-                ForEach(Array(order.enumerated()), id: \.element.id) { index, mode in
-                    if index > 0 { TRDivider() }
-                    Button {
-                        if reduceMotion {
-                            appearanceRaw = mode.rawValue
-                        } else {
-                            withAnimation(.easeInOut(duration: TR.Motion.themeSwap)) {
-                                appearanceRaw = mode.rawValue
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 12) {
-                            Text(mode.title)
-                                .font(TR.Font.row)
-                                .trLabelScaling()
-                                .foregroundStyle(colors.text)
-                            Spacer(minLength: 8)
-                            if appearanceRaw == mode.rawValue {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundStyle(colors.greenText)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .frame(height: TR.Size.settingsRow)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(TRPressStyle())
-                    .accessibilityLabel(mode.title)
-                    .accessibilityAddTraits(appearanceRaw == mode.rawValue ? .isSelected : [])
-                }
-            }
-            .trCard()
-            .padding(.top, 8)
-
-            Text("Automatiskt följer telefonens inställning. Sol- och månknappen på fjärren växlar direkt mellan ljust och mörkt.")
-                .font(TR.Font.caption)
-                .foregroundStyle(colors.muted)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 12)
-                .padding(.horizontal, 4)
-        }
     }
 }

@@ -11,17 +11,17 @@ struct StartView: View {
         // Måtten i SPEC räknas från skärmens överkant, så lagret ligger utanför
         // safe area och innehållet placeras med fasta avstånd uppifrån.
         ZStack(alignment: .top) {
-            RemoteBackground(variant: .start)
+            RemoteBackground()
             VStack(spacing: 0) {
                 TRSymbol(width: 96)
                 Text("Tech Rabbit Remote")
-                    .font(TR.Font.title)
+                    .font(TR.Font.largeTitle)
                     .tracking(-0.5)
-                    .foregroundStyle(colors.text)
+                    .foregroundStyle(colors.textPrimary)
                     .padding(.top, 34)
                 Text("Din TV. Din kontroll.")
                     .font(TR.Font.body)
-                    .foregroundStyle(Color(hex: 0xB8C4BB))
+                    .foregroundStyle(TR.Colors.dark.textSecondary)
                     .padding(.top, 14)
             }
             .padding(.top, 220)
@@ -33,7 +33,7 @@ struct StartView: View {
                 .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(colors.bgBottom)
+        .background(colors.background)
         .ignoresSafeArea()
         .preferredColorScheme(.dark)
         .environment(\.colorScheme, .dark)
@@ -44,15 +44,15 @@ struct StartView: View {
         return Button(action: onContinue) {
             Image(systemName: "chevron.right")
                 .font(.system(size: 24, weight: .regular))
-                .foregroundStyle(TR.Colors.dark.text)
+                .foregroundStyle(TR.Colors.dark.textPrimary)
                 .frame(width: TR.Size.splashButton, height: TR.Size.splashButton)
                 .background(
-                    LinearGradient(colors: [Color(hex: 0x1B4A26), Color(hex: 0x0F2A16)],
+                    LinearGradient(colors: [TR.Colors.dark.keyTop, TR.Colors.dark.keyBottom],
                                    startPoint: .top, endPoint: .bottom),
                     in: shape
                 )
-                .overlay(shape.stroke(Color(hex: 0x1CF038, opacity: 0.45), lineWidth: 1))
-                .shadow(color: Color(hex: 0x1ED63C, opacity: 0.3), radius: 11)
+                .overlay(shape.stroke(TR.Colors.dark.accent.opacity(0.45), lineWidth: 1))
+                .shadow(color: TR.Colors.dark.accent.opacity(0.3), radius: 11)
                 .contentShape(shape)
         }
         .buttonStyle(TRPressStyle())

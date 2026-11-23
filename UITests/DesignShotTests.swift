@@ -1,64 +1,48 @@
 import XCTest
+import UIKit
 
-// Skärmbilder av R01 Start, R02 Fjärr, R03 Inställningar, R04 Välj TV och
-// panelerna TV och anslutning, 123 (Sifferknappar), Tangentbord och Hjälp,
-// i ljust och mörkt läge, för jämförelse mot designpaketets bilder i
-// skarmar/. Körs av .github/workflows/screenshots.yml.
+// Skärmbilder av R01 Start, Fjärr, Inställningar, Välj TV och panelerna
+// TV och anslutning, 123 (Sifferknappar), Tangentbord och Hjälp, för
+// jämförelse mot facit i design/referenser/v2/.
+// Körs av .github/workflows/screenshots.yml.
 //
-// Varje tema går i en körning: appen startas en gång och skärmarna fotas i
-// tur och ordning, så att körtiden räcker till alla sexton bilder.
+// Appen följer telefonens läge, så temat sätts på simulatorn före körningen
+// med `xcrun simctl ui <udid> appearance light|dark`. Testlöparen följer
+// samma läge, så bilderna namnges efter det den själv ser.
 final class DesignShotTests: XCTestCase {
+
+    private var theme: String {
+        UITraitCollection.current.userInterfaceStyle == .dark ? "dark" : "light"
+    }
 
     // MARK: - R01 Start
 
-    func testShotR01StartDark() {
-        let app = launch(onboarded: false, theme: "dark")
+    func testShotR01Start() {
+        let app = launch(onboarded: false)
         XCTAssertTrue(app.staticTexts["Tech Rabbit Remote"].waitForExistence(timeout: 60))
-        shoot(app, "R01_start_dark")
+        shoot(app, "R01_start_\(theme)")
     }
 
-    // R01 ritas alltid i mörkt läge enligt SPEC. Bilden tas även med ljust
-    // valt tema, för att visa att starten inte följer temat.
-    func testShotR01StartLight() {
-        let app = launch(onboarded: false, theme: "light")
-        XCTAssertTrue(app.staticTexts["Tech Rabbit Remote"].waitForExistence(timeout: 60))
-        shoot(app, "R01_start_light")
-    }
+    // MARK: - Vandringen genom skärmarna
 
-    // MARK: - Allt i mörkt och ljust läge
-
-    func testShotsDark() { walk(theme: "dark") }
-
-    func testShotsLight() { walk(theme: "light") }
-
-    // MARK: - Vandringen
-
-    private func walk(theme: String) {
-        let app = launch(onboarded: true, theme: theme)
+    func testShots() {
+        let app = launch(onboarded: true)
         XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 60))
 
-        // R02 Fjärr
+        // Fjärr (facit sid 1 ljust, sid 2 mörkt)
         shoot(app, "R02_fjarr_\(theme)")
 
-        // R04 Välj TV
         openPanel(app, tap: app.buttons["Välj TV"], title: "Välj TV", name: "R04_valj-tv_\(theme)")
-
-        // Panelen 123 (Sifferknappar)
         openPanel(app, tap: app.buttons["Sifferknappar"], title: "Sifferknappar", name: "P05_123_\(theme)")
-
-        // Panelen Tangentbord
         openPanel(app, tap: app.buttons["Öppna tangentbord"], title: "Tangentbord", name: "P06_tangentbord_\(theme)")
 
-        // R03 Inställningar
+        // Inställningar (facit sid 3 ljust, sid 4 mörkt)
         app.buttons["Inställningar"].tap()
         XCTAssertTrue(app.staticTexts["Inställningar"].waitForExistence(timeout: 10))
         shoot(app, "R03_installningar_\(theme)")
 
-        // Panelen TV och anslutning
         openPanel(app, tap: row(app, beginningWith: "TV och anslutning"),
                   title: "TV och anslutning", name: "P07_tv-och-anslutning_\(theme)")
-
-        // Panelen Hjälp
         openPanel(app, tap: row(app, beginningWith: "Hjälp"),
                   title: "Hjälp", name: "P08_hjalp_\(theme)")
     }
@@ -78,11 +62,10 @@ final class DesignShotTests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
     }
 
-    private func launch(onboarded: Bool, theme: String) -> XCUIApplication {
+    private func launch(onboarded: Bool) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-tr.remote.onboarded", onboarded ? "YES" : "NO",
-            "-tr.remote.theme", theme,
             "-tr.remote.haptics", "NO"
         ]
         app.launch()

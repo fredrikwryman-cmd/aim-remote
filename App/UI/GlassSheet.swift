@@ -67,15 +67,15 @@ struct GlassSheet<Content: View>: View {
         let colors = TR.Colors.of(scheme)
         return ZStack {
             Text(title)
-                .font(TR.Font.sheetTitle)
+                .font(TR.Font.deviceTitle)
                 .trLabelScaling()
-                .foregroundStyle(colors.text)
+                .foregroundStyle(colors.textPrimary)
             HStack {
                 Spacer()
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(colors.text)
+                        .foregroundStyle(colors.textPrimary)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
@@ -87,7 +87,7 @@ struct GlassSheet<Content: View>: View {
     }
 }
 
-// Rad i inställningskortet och i panelerna: 52 hög, ikon 20, etikett 15 w500.
+// Rad i inställningskortet och i panelerna: 57 hög, ikon 26, etikett body 17.
 @MainActor
 struct SettingsRow: View {
     var icon: String
@@ -127,31 +127,31 @@ struct SettingsRow: View {
 
     var body: some View {
         let colors = TR.Colors.of(scheme)
-        let row = HStack(spacing: 12) {
+        let row = HStack(spacing: 18) {
             Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(colors.text)
-                .frame(width: 24)
+                .font(.system(size: 22))
+                .foregroundStyle(colors.textPrimary)
+                .frame(width: 26)
             Text(title)
-                .font(TR.Font.row)
+                .font(TR.Font.body)
                 .trLabelScaling()
-                .foregroundStyle(colors.text)
+                .foregroundStyle(colors.textPrimary)
             Spacer(minLength: 8)
             if !value.isEmpty {
                 Text(value)
-                    .font(TR.Font.rowValue)
+                    .font(TR.Font.body)
                     .trLabelScaling()
-                    .foregroundStyle(colors.muted)
+                    .foregroundStyle(colors.textSecondary)
                     .lineLimit(1)
             }
             if let accessory { accessory }
             if showsChevron {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(colors.muted)
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundStyle(colors.textSecondary)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, TR.Size.rowPadding)
         .frame(height: TR.Size.settingsRow)
         .contentShape(Rectangle())
 
@@ -165,28 +165,26 @@ struct SettingsRow: View {
     }
 }
 
-// Primärknapp: höjd 52, radie 26, gradient #2FD44A → #13A82E, glöd.
+// Primärknapp: höjd 52, radie 26, accentfärgad.
 @MainActor
 struct TRPrimaryButton: View {
     var title: String
     var action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
+        let colors = TR.Colors.of(scheme)
         let shape = RoundedRectangle(cornerRadius: TR.Radius.primaryButton, style: .continuous)
         Button(action: action) {
             Text(title)
-                .font(.custom("Archivo-Bold", size: 17))
-                .foregroundStyle(.white)
+                .font(TR.Font.button)
+                .foregroundStyle(scheme == .dark ? colors.background : .white)
                 .frame(maxWidth: .infinity)
                 .frame(height: TR.Size.primaryButton)
                 .background(
-                    LinearGradient(colors: [TR.PrimaryButton.top, TR.PrimaryButton.bottom],
-                                   startPoint: .top, endPoint: .bottom),
-                    in: shape
-                )
-                .overlay(shape.stroke(TR.PrimaryButton.border, lineWidth: 1))
-                .shadow(color: Color(hex: 0x1ED63C, opacity: 0.35), radius: 10)
+                    colors.accent, in: shape)
+                .shadow(color: colors.accent.opacity(0.30), radius: 10)
                 .contentShape(shape)
         }
         .buttonStyle(TRPressStyle())
@@ -217,7 +215,7 @@ struct TRDivider: View {
         Rectangle()
             .fill(TR.Colors.of(scheme).divider)
             .frame(height: 1)
-            .padding(.leading, 16)
+            .padding(.leading, TR.Size.rowPadding)
     }
 }
 
@@ -233,23 +231,23 @@ struct PanelNotice: View {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.system(size: 17))
-                    .foregroundStyle(colors.power)
+                    .foregroundStyle(colors.danger)
                 Text(notice)
-                    .font(TR.Font.rowValue)
-                    .foregroundStyle(colors.text)
+                    .font(TR.Font.body)
+                    .foregroundStyle(colors.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
                 Button { connection.notice = nil } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(colors.muted)
+                        .foregroundStyle(colors.textSecondary)
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Dölj meddelandet")
             }
             .padding(.leading, 14)
-            .background(colors.power.opacity(0.12), in: RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous))
+            .background(colors.danger.opacity(0.12), in: RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous))
             .accessibilityElement(children: .combine)
         }
     }

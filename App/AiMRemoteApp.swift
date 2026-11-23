@@ -5,7 +5,6 @@ import UIKit
 @MainActor
 struct AiMRemoteApp: App {
     @StateObject private var connection = TVConnection()
-    @AppStorage("tr.remote.theme") private var appearanceRaw = AppearanceMode.system.rawValue
     @AppStorage("tr.remote.onboarded") private var onboarded = false
     @Environment(\.scenePhase) private var scenePhase
 
@@ -18,14 +17,14 @@ struct AiMRemoteApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                RemoteRoot(connection: connection, appearanceRaw: $appearanceRaw)
+                RemoteRoot(connection: connection)
                 if !onboarded {
                     // R01 visas bara vid första start och är alltid mörk.
                     StartView {
                         if UIAccessibility.isReduceMotionEnabled {
                             onboarded = true
                         } else {
-                            withAnimation(.easeOut(duration: TR.Motion.themeSwap)) { onboarded = true }
+                            withAnimation(.easeOut(duration: 0.25)) { onboarded = true }
                         }
                     }
                     .transition(.opacity)

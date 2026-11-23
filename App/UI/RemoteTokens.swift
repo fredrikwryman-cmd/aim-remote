@@ -1,25 +1,6 @@
 import SwiftUI
 import UIKit
 
-enum AppearanceMode: String, CaseIterable, Identifiable {
-    case system, light, dark
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .system: return "Automatiskt"
-        case .light: return "Ljust"
-        case .dark: return "Mörkt"
-        }
-    }
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .system: return nil
-        case .light: return .light
-        case .dark: return .dark
-        }
-    }
-}
-
 extension Color {
     init(hex: UInt32, opacity: Double = 1) {
         self.init(
@@ -32,164 +13,162 @@ extension Color {
     }
 }
 
-// Tokens ur designpaketets tokens.json (Tech Rabbit Remote v1).
-// Referens 390 x 844 pt. Alla mått är fasta pt-värden.
+// Tokens ur facit: PDF:en "Tech Rabbit Remote", sidan 5 (Designsystem).
+// Måtten är uppmätta i sidan 1 (Fjärr ljust) och sidan 3 (Inställningar
+// ljust), referens 390 x 844 pt. Bilderna ligger i design/referenser/v2/.
 
 enum TR {
 
-    // MARK: - Färger
+    // MARK: - Färger (sid 5)
 
     struct Colors {
-        var bgTop: Color
-        var bgBottom: Color
-        var text: Color
-        var muted: Color
-        var mutedOnHero: Color
-        var greenText: Color
-        var green: Color
+        var background: Color
+        var surface: Color
+        var surfaceElevated: Color
+        var textPrimary: Color
+        var textSecondary: Color
+        var accent: Color
+        var accentText: Color
+        var danger: Color
+
+        /// Panelens och kortens yta ligger ovanpå bakgrunden med genomsikt,
+        /// så att skenet i nederkanten lyser igenom som i facit.
         var panel: Color
         var line: Color
         var divider: Color
+        /// Tangenternas gradient, uppmätt i facit.
         var keyTop: Color
         var keyBottom: Color
-        var keyFlat: Color
-        var okTop: Color
-        var okBottom: Color
-        var okBorder: Color
-        var power: Color
-        var powerBg: Color
-        var pill: Color
-        var tab: Color
-        var tabActive: Color
-        var swoosh: Color
-        var swooshLine: Color
-        var sheetTop: Color
-        var sheetBottom: Color
-        var scrim: Color
         var keyShadow: Color
         var keyShadowOpacity: Double
-
-        static let dark = Colors(
-            bgTop: Color(hex: 0x0A1A0E),
-            bgBottom: Color(hex: 0x050C07),
-            text: Color(hex: 0xF2F2F2),
-            muted: Color(hex: 0x9AA79D),
-            mutedOnHero: Color(hex: 0xC9D6CC),
-            greenText: Color(hex: 0x1CF038),
-            green: Color(hex: 0x1ED63C),
-            panel: .white.opacity(0.035),
-            line: .white.opacity(0.08),
-            divider: .white.opacity(0.07),
-            keyTop: Color(hex: 0x1C2A20),
-            keyBottom: Color(hex: 0x111A14),
-            keyFlat: .white.opacity(0.05),
-            okTop: Color(hex: 0x123A1C),
-            okBottom: Color(hex: 0x0B2412),
-            okBorder: Color(hex: 0x1ED63C),
-            power: Color(hex: 0xE5402A),
-            powerBg: Color(hex: 0xE5402A, opacity: 0.14),
-            pill: Color(hex: 0x1ED63C, opacity: 0.14),
-            tab: Color(hex: 0x0C180F, opacity: 0.94),
-            tabActive: Color(hex: 0x1ED63C, opacity: 0.14),
-            swoosh: Color(hex: 0x1ED63C, opacity: 0.10),
-            swooshLine: Color(hex: 0x1CF038, opacity: 0.35),
-            sheetTop: Color(hex: 0x28342C, opacity: 0.94),
-            sheetBottom: Color(hex: 0x141C17, opacity: 0.96),
-            scrim: Color(hex: 0x030804, opacity: 0.5),
-            keyShadow: .black,
-            keyShadowOpacity: 0.45
-        )
+        var glow: Color
+        var scrim: Color
+        var sheetTop: Color
+        var sheetBottom: Color
 
         static let light = Colors(
-            bgTop: Color(hex: 0xF7F8F7),
-            bgBottom: Color(hex: 0xECEFEC),
-            text: Color(hex: 0x0B0B0B),
-            muted: Color(hex: 0x5A5A5A),
-            mutedOnHero: Color(hex: 0x0B0B0B),
-            greenText: Color(hex: 0x0A7A1F),
-            green: Color(hex: 0x1ED63C),
-            panel: .white.opacity(0.6),
-            line: .black.opacity(0.06),
-            divider: .black.opacity(0.06),
-            keyTop: .white,
-            keyBottom: Color(hex: 0xF3F5F3),
-            keyFlat: .white,
-            okTop: Color(hex: 0xF1FDF2),
-            okBottom: Color(hex: 0xDFF8DA),
-            okBorder: Color(hex: 0x1ED63C),
-            power: Color(hex: 0xE5402A),
-            powerBg: Color(hex: 0xE5402A, opacity: 0.10),
-            pill: Color(hex: 0xDFF8DA),
-            tab: .white.opacity(0.85),
-            tabActive: Color(hex: 0xDFF8DA),
-            swoosh: Color(hex: 0x1ED63C, opacity: 0.10),
-            swooshLine: Color(hex: 0x1ED63C, opacity: 0.35),
-            sheetTop: .white.opacity(0.94),
-            sheetBottom: Color(hex: 0xF3F5F3, opacity: 0.96),
-            scrim: .black.opacity(0.35),
+            background: Color(hex: 0xEEF0F2),
+            surface: Color(hex: 0xF7F8F9),
+            surfaceElevated: Color(hex: 0xFFFFFF),
+            textPrimary: Color(hex: 0x111417),
+            textSecondary: Color(hex: 0x646C75),
+            accent: Color(hex: 0x1FB24E),
+            accentText: Color(hex: 0x1E9E46),
+            danger: Color(hex: 0xE8323A),
+            panel: Color(hex: 0xF7F8F9, opacity: 0.72),
+            line: .white.opacity(0.9),
+            divider: Color(hex: 0x111417, opacity: 0.07),
+            keyTop: Color(hex: 0xFFFFFF),
+            keyBottom: Color(hex: 0xF3F4F6),
+            keyShadow: Color(hex: 0x111417),
+            keyShadowOpacity: 0.10,
+            glow: Color(hex: 0x1FB24E, opacity: 0.30),
+            scrim: Color(hex: 0x111417, opacity: 0.28),
+            sheetTop: Color(hex: 0xFFFFFF, opacity: 0.96),
+            sheetBottom: Color(hex: 0xF3F4F6, opacity: 0.97)
+        )
+
+        static let dark = Colors(
+            background: Color(hex: 0x071015),
+            surface: Color(hex: 0x141C21),
+            surfaceElevated: Color(hex: 0x2B353C),
+            textPrimary: Color(hex: 0xF2F5F7),
+            textSecondary: Color(hex: 0x9AA5AE),
+            accent: Color(hex: 0x2BE36F),
+            accentText: Color(hex: 0x3EE57C),
+            danger: Color(hex: 0xF0284F),
+            panel: Color(hex: 0x141C21, opacity: 0.72),
+            line: .white.opacity(0.07),
+            divider: .white.opacity(0.07),
+            keyTop: Color(hex: 0x2B353C),
+            keyBottom: Color(hex: 0x171F25),
             keyShadow: .black,
-            keyShadowOpacity: 0.08
+            keyShadowOpacity: 0.45,
+            glow: Color(hex: 0x2BE36F, opacity: 0.10),
+            scrim: .black.opacity(0.5),
+            sheetTop: Color(hex: 0x2B353C, opacity: 0.96),
+            sheetBottom: Color(hex: 0x141C21, opacity: 0.97)
         )
 
         static func of(_ scheme: ColorScheme) -> Colors { scheme == .dark ? .dark : .light }
     }
 
-    enum PrimaryButton {
-        static let top = Color(hex: 0x2FD44A)
-        static let bottom = Color(hex: 0x13A82E)
-        static let border = Color(hex: 0x1CF038, opacity: 0.6)
-    }
-
-    // MARK: - Mått (tokens.json size/radius)
+    // MARK: - Mått, uppmätta i facit (390 x 844)
 
     enum Size {
-        static let sidePadding: CGFloat = 18
-        static let headerRow: CGFloat = 50
+        static let sidePadding: CGFloat = 15
+        static let hitTargetMin: CGFloat = 44
+
+        // Toppkortet
+        static let headerCard: CGFloat = 70
+        static let headerPadding: CGFloat = 15
         static let powerButton: CGFloat = 50
         static let iconButton: CGFloat = 44
-        static let rockerWidth: CGFloat = 70
-        static let rockerHeight: CGFloat = 140
-        static let smallKey: CGFloat = 52
-        static let dpadKeyWidth: CGFloat = 78
-        static let dpadKeyHeight: CGFloat = 70
-        static let dpadColumn: CGFloat = 82
-        static let dpadRow: CGFloat = 72
-        // SPEC R02: d-padens rutnät har gap 10 mellan raderna.
-        static let dpadGap: CGFloat = 10
-        static let okKeyWidth: CGFloat = 82
-        static let okKeyHeight: CGFloat = 74
-        static let mediaKey: CGFloat = 44
-        static let tabBar: CGFloat = 64
-        static let tabBarBottom: CGFloat = 30
-        static let tabBarSide: CGFloat = 14
-        static let pillHeight: CGFloat = 30
+
+        // Statusraden
+        static let statusRow: CGFloat = 33
+        static let statusInset: CGFloat = 12
+        static let statusDot: CGFloat = 7
+
+        // Fjärrpanelen
+        static let panelPaddingH: CGFloat = 11
+        static let panelPaddingTop: CGFloat = 16
+        static let panelPaddingBottom: CGFloat = 21.5
+        static let panelGap: CGFloat = 16
+        static let columnGap: CGFloat = 13.5
+        static let rockerWidth: CGFloat = 76
+        static let rockerHeight: CGFloat = 127
+        static let rockerInset: CGFloat = 4
+        static let rockerKey: CGFloat = 48
+        static let smallKey: CGFloat = 45
+        static let smallKeyGap: CGFloat = 28
+        static let dpadKey: CGFloat = 84.5
+        static let dpadColumnGap: CGFloat = 42
+        static let dpadRowGap: CGFloat = 10.5
+        static let mediaKey: CGFloat = 49
+
+        /// Panelens höjd i facit: 16 + 127 + 16 + 274,5 + 16 + 49 + 21,5.
+        static let panelHeight: CGFloat =
+            panelPaddingTop + rockerHeight + panelGap
+                + dpadKey * 3 + dpadRowGap * 2 + panelGap + mediaKey + panelPaddingBottom
+
+        // Flikraden
+        static let tabBar: CGFloat = 72
+        static let tabBarPadding: CGFloat = 8
+        static let tabItemGap: CGFloat = 7
+
+        // Inställningar
+        static let heroCard: CGFloat = 99
+        static let heroIcon: CGFloat = 60
+        static let heroPadding: CGFloat = 19
+        static let settingsRow: CGFloat = 57
+        static let rowPadding: CGFloat = 20
+
+        // Start
         static let splashButton: CGFloat = 64
-        static let hitTargetMin: CGFloat = 44
-        static let panelPadding: CGFloat = 12
-        static let panelGap: CGFloat = 14
-        // SPEC R03: inställningskortet har fem rader à 52.
-        static let settingsRow: CGFloat = 52
-        // SPEC R04: Anslut-knappen är 52 hög, radie 26 (TR.Radius.primaryButton).
+
+        // Paneler (blad)
         static let primaryButton: CGFloat = 52
-        // SPEC R04: raderna i bladet är 56 höga, radie 18 (TR.Radius.sheetRow).
         static let sheetRow: CGFloat = 56
     }
 
     enum Radius {
+        static let headerCard: CGFloat = 35
         static let panel: CGFloat = 34
-        static let rocker: CGFloat = 30
-        static let smallKey: CGFloat = 18
-        static let dpadKey: CGFloat = 22
-        static let okKey: CGFloat = 24
-        static let mediaKey: CGFloat = 22
-        static let tabBar: CGFloat = 24
-        static let tabItem: CGFloat = 18
+        static let rocker: CGFloat = 38
+        static let rockerKey: CGFloat = 24
+        static let smallKey: CGFloat = 22
+        static let dpadKey: CGFloat = 26
+        static let mediaKey: CGFloat = 24.5
+        static let tabBar: CGFloat = 36
+        static let tabItem: CGFloat = 28
         static let card: CGFloat = 24
         static let hero: CGFloat = 28
+        static let heroIcon: CGFloat = 17
+        static let pill: CGFloat = 16.5
         static let sheet: CGFloat = 34
         static let sheetRow: CGFloat = 18
         static let primaryButton: CGFloat = 26
-        static let pill: CGFloat = 15
         static let splashButton: CGFloat = 20
     }
 
@@ -197,54 +176,43 @@ enum TR {
         static let press: Double = 0.10
         static let pressScale: CGFloat = 0.96
         static let pressOpacity: Double = 0.9
-        static let okPress: Double = 0.12
-        static let okPressScale: CGFloat = 0.95
         static let sheetIn: Double = 0.28
         static let sheetOut: Double = 0.20
-        static let themeSwap: Double = 0.25
         static let tab: Double = 0.18
     }
 
-    // MARK: - Typsnitt (Archivo 400-900)
+    // MARK: - Typsnitt: SF Pro, systemets (sid 5)
 
     enum Font {
-        static func archivo(_ weight: Int, _ size: CGFloat) -> SwiftUI.Font {
-            .custom(name(for: weight), fixedSize: size)
-        }
-        // Etiketter får skala, men högst 1,3 gånger (tokens: Dynamic Type max 1,3).
-        static func scaled(_ weight: Int, _ size: CGFloat) -> SwiftUI.Font {
-            .custom(name(for: weight), size: size)
-        }
-        private static func name(for weight: Int) -> String {
-            switch weight {
-            case ..<500: return "Archivo-Regular"
-            case 500..<600: return "Archivo-Medium"
-            case 600..<700: return "Archivo-SemiBold"
-            case 700..<800: return "Archivo-Bold"
-            case 800..<900: return "Archivo-ExtraBold"
-            default: return "Archivo-Black"
-            }
-        }
+        /// largeTitle 34 / 41 Bold
+        static let largeTitle = SwiftUI.Font.system(size: 34, weight: .bold)
+        /// deviceTitle 20 / 24 Semibold
+        static let deviceTitle = SwiftUI.Font.system(size: 20, weight: .semibold)
+        /// cardTitle 24 / 29 Bold
+        static let cardTitle = SwiftUI.Font.system(size: 24, weight: .bold)
+        /// body 17 / 22 Regular
+        static let body = SwiftUI.Font.system(size: 17, weight: .regular)
+        /// button 17 / 22 Medium
+        static let button = SwiftUI.Font.system(size: 17, weight: .medium)
+        /// numeric 30 / 36 Regular
+        static let numeric = SwiftUI.Font.system(size: 30, weight: .regular)
+        /// caption 13 / 18 Medium
+        static let caption = SwiftUI.Font.system(size: 13, weight: .medium)
 
-        static let title = archivo(800, 34)          // R01-rubrik
-        static let screenTitle = scaled(800, 24)
-        static let device = scaled(700, 20)
-        static let heroTitle = scaled(800, 20)
-        static let sheetTitle = scaled(800, 20)
-        static let ok = archivo(700, 21)             // fast, tangent
-        static let row = scaled(500, 15)
-        static let rowValue = scaled(400, 14)
-        static let body = scaled(400, 17)
-        static let status = scaled(600, 14)
-        static let caption = scaled(400, 12)
-        static let keyLabel = archivo(400, 13)       // fast, tangent
-        static let tabLabel = scaled(400, 11)
-        static let tabLabelActive = scaled(700, 11)
-        static let number = archivo(600, 20)         // "123", fast
+        /// Radhöjderna ur sid 5, för text som kan brytas till flera rader.
+        static let bodyLineSpacing: CGFloat = 22 - 17
+        static let captionLineSpacing: CGFloat = 18 - 13
+    }
+
+    /// Knappstates sid 5. Standard, Pressed, Disabled och Selected.
+    enum State {
+        static let pressedScale: CGFloat = 0.96
+        static let pressedOpacity: Double = 0.9
+        static let disabledOpacity: Double = 0.4
     }
 }
 
-// Dynamic Type högst 1,3 på etiketter.
+// Dynamic Type högst accessibility1 på etiketter.
 struct LimitedDynamicType: ViewModifier {
     func body(content: Content) -> some View {
         content.dynamicTypeSize(...DynamicTypeSize.accessibility1)
@@ -255,7 +223,7 @@ extension View {
     func trLabelScaling() -> some View { modifier(LimitedDynamicType()) }
 }
 
-// MARK: - Haptik enligt tokens.json
+// MARK: - Haptik
 
 @MainActor
 enum TRHaptics {
@@ -284,19 +252,31 @@ enum TRHaptics {
 
 // MARK: - Bakgrund
 
+/// Jämn bakgrundsfärg med ett grönt sken i nederkanten, som i facit.
+/// Ingen swoosh.
 struct RemoteBackground: View {
-    enum Variant { case remote, start }
-    var variant: Variant = .remote
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let colors = TR.Colors.of(scheme)
-        ZStack {
-            LinearGradient(colors: [colors.bgTop, colors.bgBottom], startPoint: .top, endPoint: .bottom)
-            Image(variant == .start ? "SwooshStart" : "Swoosh")
-                .resizable()
-                .scaledToFill()
-                .allowsHitTesting(false)
+        GeometryReader { geometry in
+            let w = geometry.size.width
+            let h = geometry.size.height
+            ZStack {
+                colors.background
+                RadialGradient(
+                    colors: [colors.glow, colors.glow.opacity(0)],
+                    center: UnitPoint(x: 0.85, y: 1.02),
+                    startRadius: 0,
+                    endRadius: max(w, h) * 0.85
+                )
+                RadialGradient(
+                    colors: [colors.glow.opacity(0.6), colors.glow.opacity(0)],
+                    center: UnitPoint(x: 0.1, y: 1.05),
+                    startRadius: 0,
+                    endRadius: max(w, h) * 0.55
+                )
+            }
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)

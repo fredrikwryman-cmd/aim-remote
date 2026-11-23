@@ -1,11 +1,11 @@
 import XCTest
+import UIKit
 
 final class ScreenTests: XCTestCase {
-    private func launch(onboarded: Bool = true, theme: String = "dark") -> XCUIApplication {
+    private func launch(onboarded: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-tr.remote.onboarded", onboarded ? "YES" : "NO",
-            "-tr.remote.theme", theme,
             "-tr.remote.haptics", "YES"
         ]
         app.launch()
@@ -32,7 +32,6 @@ final class ScreenTests: XCTestCase {
         // R02 enligt SPEC steg 1-3.
         XCTAssertTrue(app.buttons["Slå på eller av TV:n"].exists)
         XCTAssertTrue(app.buttons["Välj TV"].exists)
-        XCTAssertTrue(app.buttons["Byt till ljust utseende"].exists)
         XCTAssertTrue(app.buttons["Sifferknappar"].exists)
         XCTAssertTrue(app.buttons["Bekräfta"].exists)
         XCTAssertTrue(app.buttons["Spola bakåt"].exists)
@@ -51,25 +50,8 @@ final class ScreenTests: XCTestCase {
         XCTAssertTrue(first(app, beginningWith: "TV och anslutning").exists)
         XCTAssertTrue(app.buttons["Hjälp"].exists)
         XCTAssertTrue(app.switches["Knappvibration"].exists)
-        XCTAssertTrue(first(app, beginningWith: "Utseende").exists)
+        XCTAssertFalse(first(app, beginningWith: "Utseende").exists)
         XCTAssertTrue(app.staticTexts["v0.1.0 · Testversion"].exists)
-    }
-
-    // Utseende-bladet: tre val, bock vid valt lage, stangs med X.
-    func testAppearancePanel() {
-        let app = launch(theme: "dark")
-        XCTAssertTrue(app.buttons["Inställningar"].waitForExistence(timeout: 60))
-        app.buttons["Inställningar"].tap()
-        let row = first(app, beginningWith: "Utseende")
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
-        row.tap()
-
-        XCTAssertTrue(app.buttons["Ljust"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Mörkt"].exists)
-        XCTAssertTrue(app.buttons["Automatiskt"].exists)
-        app.buttons["Ljust"].tap()
-        app.buttons["Stäng"].tap()
-        XCTAssertTrue(first(app, beginningWith: "Utseende").waitForExistence(timeout: 5))
     }
 
     // R04 Valj TV oppnas fran TV-ikonen och stangs med X.
@@ -94,23 +76,45 @@ final class ScreenTests: XCTestCase {
         app.buttons["Stäng"].tap()
     }
 
-    func testThemeButtonSwitchesTheme() {
-        let app = launch(theme: "light")
-        let toDark = app.buttons["Byt till mörkt utseende"]
-        XCTAssertTrue(toDark.waitForExistence(timeout: 60))
-        // Temaknappens accessibilityValue är appearanceRaw. Läs det före och
-        // efter trycket, så att felmeddelandet visar om trycket nådde fram.
-        let before = toDark.value as? String ?? "(inget värde)"
-        // Ett vanligt tap på elementet nådde aldrig fram: den samtidiga
-        // långtrycksgesten åt upp det syntetiserade trycket. Ett tryck på
-        // knappens mittkoordinat går förbi den.
-        toDark.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let switched = app.buttons["Byt till ljust utseende"].waitForExistence(timeout: 5)
-        let themeButton = app.buttons
+    // Appen har ingen temaknapp langre: den foljer telefonens lage. Testet
+    // laser simulatorns utseende ur testloparens egen traitCollection och
+    // jamfor med fargen appen faktiskt malar i bakgrunden.
+    func testAppFollowsSystemAppearance() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 60))
+
+        // Ingen temaknapp och inget Utseende-val finns kvar.
+        XCTAssertFalse(app.buttons
             .matching(NSPredicate(format: "label BEGINSWITH %@", "Byt till"))
-            .firstMatch
-        let after = themeButton.value as? String ?? "(inget värde)"
-        XCTAssertTrue(switched, "appearanceRaw före trycket: \(before), efter: \(after)")
+            .firstMatch.exists)
+
+        let systemIsDark = UITraitCollection.current.userInterfaceStyle == .dark
+        guard let luma = backgroundLuma(of: app) else {
+            return XCTFail("Kunde inte lasa en bildpunkt ur skarmbilden.")
+        }
+        // Bakgrunden ar #EEF0F2 i ljust lage och #071015 i morkt.
+        if systemIsDark {
+            XCTAssertLessThan(luma, 0.35,
+                              "Systemet ar i morkt lage men appen ritar ljust (luma \(luma)).")
+        } else {
+            XCTAssertGreaterThan(luma, 0.65,
+                                 "Systemet ar i ljust lage men appen ritar morkt (luma \(luma)).")
+        }
+    }
+
+    /// Ljusheten i en punkt uppe till vanster, dar bara bakgrunden ligger.
+    private func backgroundLuma(of app: XCUIApplication) -> CGFloat? {
+        guard let cg = app.screenshot().image.cgImage else { return nil }
+        let x = Int(CGFloat(cg.width) * 0.04)
+        let y = Int(CGFloat(cg.height) * 0.10)
+        guard let data = cg.dataProvider?.data,
+              let bytes = CFDataGetBytePtr(data) else { return nil }
+        let offset = y * cg.bytesPerRow + x * (cg.bitsPerPixel / 8)
+        guard offset + 2 < CFDataGetLength(data) else { return nil }
+        let c0 = CGFloat(bytes[offset]) / 255
+        let c1 = CGFloat(bytes[offset + 1]) / 255
+        let c2 = CGFloat(bytes[offset + 2]) / 255
+        return (c0 + c1 + c2) / 3
     }
 
     private func first(_ app: XCUIApplication, beginningWith prefix: String) -> XCUIElement {

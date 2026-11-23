@@ -3,7 +3,7 @@ import AiMCore
 import UIKit
 
 enum Panel: String, Identifiable {
-    case connection, chooseTV, numbers, keyboard, help, appearance
+    case connection, chooseTV, numbers, keyboard, help
     var id: String { rawValue }
 }
 
@@ -12,9 +12,6 @@ enum MainTab { case remote, settings }
 @MainActor
 struct RemoteRoot: View {
     @ObservedObject var connection: TVConnection
-    /// Utseendet ägs av AiMRemoteApp, som sätter preferredColorScheme. En egen
-    /// @AppStorage här gjorde att skrivningen aldrig nådde dit.
-    @Binding var appearanceRaw: String
     @AppStorage("tr.remote.haptics") private var haptics = true
     @State private var tab: MainTab = .remote
     @State private var panel: Panel?
@@ -25,27 +22,26 @@ struct RemoteRoot: View {
         ZStack(alignment: .bottom) {
             Group {
                 if tab == .remote {
-                    RemoteScreen(connection: connection, appearanceRaw: $appearanceRaw) { open($0) }
+                    RemoteScreen(connection: connection) { open($0) }
                 } else {
                     SettingsScreen(
                         connection: connection,
                         haptics: $haptics,
-                        appearanceRaw: $appearanceRaw,
                         openPanel: { open($0) }
                     )
                 }
             }
-            .padding(.bottom, TR.Size.tabBar + TR.Size.tabBarBottom)
+            .padding(.bottom, TR.Size.tabBar + 10)
 
             FloatingTabBar(selection: $tab)
-                .padding(.bottom, max(TR.Size.tabBarBottom - 34, 12))
+                .padding(.bottom, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Bakgrunden ligger bakom innehållet i stället för bredvid det i
         // stacken. En syskonvy med ignoresSafeArea drar ut hela stacken, och
         // då hamnade rubriken under statusfältet.
-        .background(RemoteBackground(variant: .remote))
-        .tint(TR.Colors.of(scheme).greenText)
+        .background(RemoteBackground())
+        .tint(TR.Colors.of(scheme).accentText)
         .overlay {
             if let panel {
                 sheet(for: panel)
@@ -59,11 +55,8 @@ struct RemoteRoot: View {
                     )
             }
         }
-        // Utseendet sätts här, i vyn som äger värdet. Låg det i App-kroppen
-        // räknades skrivningen aldrig om till ett nytt colorScheme.
-        .preferredColorScheme(AppearanceMode(rawValue: appearanceRaw)?.colorScheme)
-        // Temabyte: crossfade 250 ms, direkt vid Reducera rorelse.
-        .animation(reduceMotion ? nil : .easeInOut(duration: TR.Motion.themeSwap), value: appearanceRaw)
+        // Appen följer telefonens ljusa eller mörka läge. Ingen temaknapp och
+        // ingen Utseende-rad: inget preferredColorScheme sätts här.
         .onChange(of: connection.ready) { ready in
             if ready { TRHaptics.connected() }
         }
@@ -94,8 +87,6 @@ struct RemoteRoot: View {
             KeyboardPanel(connection: connection, onClose: close)
         case .help:
             HelpPanel(onClose: close)
-        case .appearance:
-            AppearancePanel(appearanceRaw: $appearanceRaw, onClose: close)
         }
     }
 

@@ -1,149 +1,141 @@
 import SwiftUI
 import AiMCore
 
-// R02 Fjärr. Fasta pt-mått enligt SPEC.md steg 1-4 (referens 390 x 844).
+// Fjärr, ritad efter facit sid 1 (ljust) och sid 2 (mörkt).
+// Måtten är uppmätta i sid 1, referens 390 x 844.
 @MainActor
 struct RemoteScreen: View {
     @ObservedObject var connection: TVConnection
-    @Binding var appearanceRaw: String
     var openPanel: (Panel) -> Void
 
     @Environment(\.colorScheme) private var scheme
-    @State private var toast: String?
 
-    /// Panelens mått vid den bredd och höjd som faktiskt finns. Proportionerna
-    /// är SPEC:ens; bara skalan ändras, så att tangenter och mellanrum växer
-    /// med skärmen i stället för att lämna ett tomt fält under panelen.
-    private struct PanelMetrics {
+    /// Panelen behåller facit-proportionerna och skalas bara i höjd, så att
+    /// den fyller ytan ned till flikraden oavsett säker yta.
+    private struct Metrics {
         var width: CGFloat
-        var gap: CGFloat
-        var keyGap: CGFloat
+        var inner: CGFloat
+        var scale: CGFloat
         var rocker: CGFloat
         var smallKey: CGFloat
-        var dpadRow: CGFloat
-        var okKey: CGFloat
+        var smallKeyGap: CGFloat
+        var dpadKey: CGFloat
+        var dpadRowGap: CGFloat
         var media: CGFloat
+        var gap: CGFloat
+        var padTop: CGFloat
+        var padBottom: CGFloat
         var height: CGFloat
+        /// Bredder inom panelen
+        var columnGap: CGFloat
+        var keyWidth: CGFloat
+        var dpadColumn: CGFloat
+        var mediaWidth: CGFloat
     }
 
-    /// SPEC R02: 12 + 140 + 14 + (3 x 72 med gap 10) + 14 + 44 + 12 = 472.
-    private static let basePanelHeight: CGFloat =
-        TR.Size.panelPadding * 2 + TR.Size.rockerHeight + TR.Size.panelGap
-            + TR.Size.dpadRow * 3 + TR.Size.dpadGap * 2 + TR.Size.panelGap + TR.Size.mediaKey
+    private func metrics(width: CGFloat, height: CGFloat) -> Metrics {
+        let inner = width - TR.Size.panelPaddingH * 2
+        let columnGap = TR.Size.columnGap
+        let keyWidth = max((inner - TR.Size.rockerWidth * 2 - columnGap * 3) / 2, TR.Size.hitTargetMin)
+        let dpadColumn = max((inner - TR.Size.dpadColumnGap * 2) / 3, TR.Size.hitTargetMin)
+        let mediaWidth = max((inner - columnGap * 3) / 4, TR.Size.hitTargetMin)
 
-    private func metrics(width: CGFloat, height: CGFloat) -> PanelMetrics {
-        // Facit ritar panelen i fasta pt-mått. Den växer aldrig över SPEC:ens
-        // storlekar; blir det höjd över ligger den under panelen, som i facit.
-        // Krymper bara på skärmar som är för korta, och aldrig under 0,82:
-        // då blir mediatangenten mindre än träffytan.
-        let scale = min(1.0, max(0.82, height / Self.basePanelHeight))
-        let gap = TR.Size.panelGap * scale
-        let rocker = TR.Size.rockerHeight * scale
-        let dpadRow = TR.Size.dpadRow * scale
-        let media = max(TR.Size.mediaKey * scale, TR.Size.hitTargetMin)
-        return PanelMetrics(
+        let s = min(1.18, max(0.80, height / TR.Size.panelHeight))
+        let dpadKey = min(dpadColumn, TR.Size.dpadKey * s)
+        let rocker = TR.Size.rockerHeight * s
+        let media = max(TR.Size.mediaKey * s, TR.Size.hitTargetMin)
+        let gap = TR.Size.panelGap * s
+        let padTop = TR.Size.panelPaddingTop * s
+        let padBottom = TR.Size.panelPaddingBottom * s
+        let dpadRowGap = TR.Size.dpadRowGap * s
+
+        return Metrics(
             width: width,
-            gap: gap,
-            keyGap: 10 * scale,
+            inner: inner,
+            scale: s,
             rocker: rocker,
-            smallKey: TR.Size.smallKey * scale,
-            dpadRow: dpadRow,
-            okKey: TR.Size.okKeyHeight * scale,
+            smallKey: max(TR.Size.smallKey * s, TR.Size.hitTargetMin),
+            smallKeyGap: TR.Size.smallKeyGap * s,
+            dpadKey: dpadKey,
+            dpadRowGap: dpadRowGap,
             media: media,
-            height: TR.Size.panelPadding * 2 + rocker + gap + dpadRow * 3
-                + TR.Size.dpadGap * 2 * scale + gap + media
+            gap: gap,
+            padTop: padTop,
+            padBottom: padBottom,
+            height: padTop + rocker + gap + dpadKey * 3 + dpadRowGap * 2
+                + gap + media + padBottom,
+            columnGap: columnGap,
+            keyWidth: keyWidth,
+            dpadColumn: dpadColumn,
+            mediaWidth: mediaWidth
         )
     }
 
     var body: some View {
         GeometryReader { geometry in
-            // Flikraden är redan avdragen av RemoteRoot, så hela höjden här
-            // tillhör fjärren.
-            let above = TR.Size.headerRow + 14 + TR.Size.pillHeight + 16
+            // Flikraden är redan avdragen av RemoteRoot.
+            let above = TR.Size.headerCard + 7 + TR.Size.statusRow + 13
             let m = metrics(width: geometry.size.width - TR.Size.sidePadding * 2,
-                            height: max(geometry.size.height - above, 1))
+                            height: max(geometry.size.height - above - 10, 1))
             VStack(alignment: .leading, spacing: 0) {
                 header
-                statusRow.padding(.top, 14)
-                panel(m)
-                    .padding(.top, 16)
+                statusRow.padding(.top, 7)
+                panel(m).padding(.top, 13)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, TR.Size.sidePadding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(alignment: .bottom) {
-                if let toast {
-                    Text(toast)
-                        .font(TR.Font.status)
-                        .foregroundStyle(TR.Colors.of(scheme).text)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(TR.Colors.of(scheme).tab, in: Capsule())
-                        .padding(.bottom, 12)
-                        .transition(.opacity)
-                }
-            }
         }
     }
 
-    // MARK: - 1. Huvud, rad 50
+    // MARK: - Toppkort
 
     private var header: some View {
         let colors = TR.Colors.of(scheme)
+        let shape = RoundedRectangle(cornerRadius: TR.Radius.headerCard, style: .continuous)
         return HStack(spacing: 0) {
-            Button {
-                TRHaptics.power()
-                connection.press(.power)
-            } label: {
-                Image(systemName: "power")
-                    .font(.system(size: 24, weight: .regular))
-                    .foregroundStyle(colors.power)
-                    .frame(width: TR.Size.powerButton, height: TR.Size.powerButton)
-                    .background(Circle().fill(colors.powerBg))
-                    .contentShape(Circle())
-            }
-            .buttonStyle(TRPressStyle())
-            .accessibilityLabel("Slå på eller av TV:n")
+            PowerButton { connection.press(.power) }
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(connection.tvName)
-                    .font(TR.Font.device)
+                    .font(TR.Font.deviceTitle)
                     .trLabelScaling()
-                    .foregroundStyle(colors.text)
+                    .foregroundStyle(colors.textPrimary)
                     .lineLimit(1)
                 Text("Tech Rabbit Remote")
                     .font(TR.Font.caption)
                     .trLabelScaling()
-                    .foregroundStyle(colors.muted)
+                    .foregroundStyle(colors.textSecondary)
+                    .lineLimit(1)
             }
-            .padding(.leading, 12)
+            .padding(.leading, 19)
 
             Spacer(minLength: 8)
 
-            TRIconButton(
-                icon: themeScheme == .dark ? "sun.max" : "moon",
-                variant: .flat,
-                label: themeScheme == .dark ? "Byt till ljust utseende" : "Byt till mörkt utseende",
-                action: toggleTheme,
-                longPress: useSystemTheme,
-                diagnosticValue: appearanceRaw
-            )
-            TRIconButton(icon: "tv", variant: .ghost, label: "Välj TV") {
+            TRIconButton(icon: "tv", variant: .ghost, iconSize: 24, label: "Välj TV") {
                 openPanel(.chooseTV)
             }
-            .padding(.leading, 4)
         }
-        .frame(height: TR.Size.headerRow)
+        .padding(.horizontal, TR.Size.headerPadding)
+        .frame(height: TR.Size.headerCard)
+        .background {
+            // Facit ritar kortets yta i ljust läge; i mörkt ligger huvudet
+            // direkt på bakgrunden (sid 1 mot sid 2).
+            if scheme == .light {
+                shape.fill(colors.surface)
+                    .overlay(shape.stroke(colors.line, lineWidth: 1))
+            }
+        }
     }
 
-    // MARK: - 2. Statusrad
+    // MARK: - Statusrad
 
     private var statusRow: some View {
         let colors = TR.Colors.of(scheme)
-        return HStack(spacing: 8) {
+        return HStack(spacing: 10) {
             StatusDot(state: state)
             Text(state.text)
-                .font(TR.Font.status)
+                .font(TR.Font.body)
                 .trLabelScaling()
                 .foregroundStyle(state.textColor(colors))
             Spacer(minLength: 8)
@@ -155,7 +147,8 @@ struct RemoteScreen: View {
             }
             .accessibilityLabel(state.pill)
         }
-        .frame(height: TR.Size.pillHeight)
+        .padding(.horizontal, TR.Size.statusInset)
+        .frame(height: TR.Size.statusRow)
     }
 
     private var state: RemoteState {
@@ -164,177 +157,176 @@ struct RemoteScreen: View {
         return connection.ready ? .connected : .disconnected
     }
 
-    // MARK: - 3. Fjärrpanel
+    // MARK: - Tangentpanelen
 
-    private func panel(_ m: PanelMetrics) -> some View {
+    private func panel(_ m: Metrics) -> some View {
         let colors = TR.Colors.of(scheme)
-        let inner = m.width - TR.Size.panelPadding * 2
-        let middle = inner - TR.Size.rockerWidth * 2 - 20
-        let smallKeyWidth = (middle - 10) / 2
-        let mediaWidth = (inner - 24) / 4
+        let shape = RoundedRectangle(cornerRadius: TR.Radius.panel, style: .continuous)
 
-        return VStack(spacing: m.gap) {
-            // Övre rad: vippa | 2x2-rutnät | vippa
-            HStack(spacing: 10) {
+        return VStack(spacing: 0) {
+            // Rad 1: Kanal-vippa, 2x2-rutnät, Volym-vippa.
+            HStack(spacing: m.columnGap) {
                 TRRocker(title: "Kanal", upLabel: "Nästa kanal", downLabel: "Föregående kanal",
-                         height: m.rocker,
-                         up: { connection.press(.channelUp) }, down: { connection.press(.channelDown) })
+                         height: m.rocker, keyHeight: m.rocker * 0.378,
+                         up: { connection.press(.channelUp) },
+                         down: { connection.press(.channelDown) })
                     .disabled(!connection.ready)
-                VStack(spacing: m.keyGap) {
-                    HStack(spacing: 10) {
-                        smallKey("list.bullet.rectangle", "Öppna menyn", width: smallKeyWidth, height: m.smallKey) { connection.press(.guide) }
+
+                VStack(spacing: m.smallKeyGap) {
+                    HStack(spacing: m.columnGap) {
+                        smallKey("list.bullet.rectangle", "Öppna menyn", m) { connection.press(.guide) }
                             .disabled(!connection.ready)
-                        smallKey("speaker.slash", "Stäng av ljudet", width: smallKeyWidth, height: m.smallKey) { connection.press(.mute) }
+                        smallKey("speaker.slash", "Stäng av ljudet", m) { connection.press(.mute) }
                             .disabled(!connection.ready)
                     }
-                    HStack(spacing: 10) {
-                        smallKey("gearshape", "TV:ns inställningar", width: smallKeyWidth, height: m.smallKey) { connection.press(.settings) }
+                    HStack(spacing: m.columnGap) {
+                        smallKey("gearshape", "TV:ns inställningar", m) { connection.press(.settings) }
                             .disabled(!connection.ready)
                         // Tangentbordet öppnar en panel i appen och behöver ingen TV.
-                        smallKey("keyboard", "Öppna tangentbord", width: smallKeyWidth, height: m.smallKey) { openPanel(.keyboard) }
+                        smallKey("keyboard", "Öppna tangentbord", m) { openPanel(.keyboard) }
                     }
                 }
-                .frame(width: middle)
+                .frame(height: m.rocker)
+
                 TRRocker(title: "Volym", upLabel: "Höj volymen", downLabel: "Sänk volymen",
-                         height: m.rocker,
-                         up: { connection.press(.volumeUp) }, down: { connection.press(.volumeDown) })
+                         height: m.rocker, keyHeight: m.rocker * 0.378,
+                         up: { connection.press(.volumeUp) },
+                         down: { connection.press(.volumeDown) })
                     .disabled(!connection.ready)
             }
+            .frame(height: m.rocker)
 
-            // D-pad: 3 x 82 kolumner, 3 x 72 rader, gap 10.
-            VStack(spacing: TR.Size.dpadGap * (m.dpadRow / TR.Size.dpadRow)) {
-                dpadRow(height: m.dpadRow) {
-                    TRGhostButton(width: TR.Size.dpadColumn, height: m.dpadRow) {
-                        openPanel(.numbers)
-                    } label: {
-                        Text("123").font(TR.Font.number)
+            Spacer(minLength: 0).frame(height: m.gap)
+
+            // Rad 2: 3 x 3 med 123, pilar, OK, mikrofon, tillbaka och hem.
+            VStack(spacing: m.dpadRowGap) {
+                HStack(spacing: m.columnGap) {
+                    ghost(m, "Sifferknappar") { openPanel(.numbers) } label: {
+                        Text("123").font(TR.Font.numeric)
                     }
-                    // Sifferpanelen öppnas i appen och behöver ingen TV.
-                    .accessibilityLabel("Sifferknappar")
-
-                    dpadKey("chevron.up", "Upp", height: m.dpadRow) { connection.press(.up) }
+                    dpadKey("chevron.up", "Upp", m) { connection.press(.up) }
                         .disabled(!connection.ready)
-
-                    TRGhostButton(width: TR.Size.dpadColumn, height: m.dpadRow) {
+                    ghost(m, connection.recording ? "Stoppa röststyrning" : "Röststyrning") {
                         Task { await connection.toggleVoice() }
                     } label: {
                         Image(systemName: connection.recording ? "stop.fill" : "mic")
-                            .font(.system(size: 24))
-                            .foregroundStyle(connection.recording ? TR.Colors.of(scheme).power : TR.Colors.of(scheme).text)
+                            .font(.system(size: 26))
+                            .foregroundStyle(connection.recording
+                                             ? TR.Colors.of(scheme).danger
+                                             : TR.Colors.of(scheme).textPrimary)
                     }
-                    .accessibilityLabel(connection.recording ? "Stoppa röststyrning" : "Röststyrning")
                     .disabled(!connection.ready)
                 }
-                dpadRow(height: m.dpadRow) {
-                    dpadKey("chevron.left", "Vänster", height: m.dpadRow) { connection.press(.left) }
+                HStack(spacing: m.columnGap) {
+                    dpadKey("chevron.left", "Vänster", m) { connection.press(.left) }
                         .disabled(!connection.ready)
-                    TROkKey(height: m.okKey) { connection.press(.ok) }
-                        .frame(width: TR.Size.dpadColumn, height: m.dpadRow)
-                        .disabled(!connection.ready)
-                    dpadKey("chevron.right", "Höger", height: m.dpadRow) { connection.press(.right) }
+                    TRKey(width: m.dpadKey, height: m.dpadKey, radius: TR.Radius.dpadKey) {
+                        TRHaptics.ok()
+                        connection.press(.ok)
+                    } label: {
+                        Text("OK").font(.system(size: 21, weight: .bold))
+                    }
+                    .frame(width: m.dpadColumn, height: m.dpadKey)
+                    .accessibilityLabel("Bekräfta")
+                    .disabled(!connection.ready)
+                    dpadKey("chevron.right", "Höger", m) { connection.press(.right) }
                         .disabled(!connection.ready)
                 }
-                dpadRow(height: m.dpadRow) {
-                    TRGhostButton(width: TR.Size.dpadColumn, height: m.dpadRow) {
-                        connection.press(.back)
-                    } label: {
-                        Image(systemName: "arrow.left").font(.system(size: 24))
+                HStack(spacing: m.columnGap) {
+                    ghost(m, "Gå tillbaka") { connection.press(.back) } label: {
+                        Image(systemName: "arrow.left").font(.system(size: 26))
                     }
-                    .accessibilityLabel("Gå tillbaka")
                     .disabled(!connection.ready)
-
-                    dpadKey("chevron.down", "Ned", height: m.dpadRow) { connection.press(.down) }
+                    dpadKey("chevron.down", "Ned", m) { connection.press(.down) }
                         .disabled(!connection.ready)
-
-                    TRGhostButton(width: TR.Size.dpadColumn, height: m.dpadRow) {
-                        connection.press(.home)
-                    } label: {
-                        Image(systemName: "house").font(.system(size: 24))
+                    ghost(m, "Till startsidan") { connection.press(.home) } label: {
+                        Image(systemName: "house").font(.system(size: 26))
                     }
-                    .accessibilityLabel("Till startsidan")
                     .disabled(!connection.ready)
                 }
             }
 
-            // Mediarad: fyra lika breda tangenter, höjd 44, gap 8.
-            HStack(spacing: 8) {
-                mediaKey("backward", "Spola bakåt", width: mediaWidth, height: m.media) { connection.press(.rewind) }
-                mediaKey("play", "Spela", width: mediaWidth, height: m.media) { connection.press(.play) }
-                mediaKey("pause", "Paus", width: mediaWidth, height: m.media) { connection.press(.pause) }
-                mediaKey("forward", "Spola framåt", width: mediaWidth, height: m.media) { connection.press(.fastForward) }
+            Spacer(minLength: 0).frame(height: m.gap)
+
+            // Rad 3: mediatangenter.
+            HStack(spacing: m.columnGap) {
+                mediaKey("backward", "Spola bakåt", m) { connection.press(.rewind) }
+                mediaKey("play", "Spela", m) { connection.press(.play) }
+                mediaKey("pause", "Paus", m) { connection.press(.pause) }
+                mediaKey("forward", "Spola framåt", m) { connection.press(.fastForward) }
             }
             .disabled(!connection.ready)
         }
-        .padding(TR.Size.panelPadding)
+        .padding(.horizontal, TR.Size.panelPaddingH)
+        .padding(.top, m.padTop)
+        .padding(.bottom, m.padBottom)
         .frame(width: m.width, height: m.height)
-        .background(
-            RoundedRectangle(cornerRadius: TR.Radius.panel, style: .continuous).fill(colors.panel)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: TR.Radius.panel, style: .continuous).stroke(colors.line, lineWidth: 1)
-        )
+        .background(shape.fill(colors.panel))
+        .overlay(shape.stroke(colors.line, lineWidth: 1))
     }
 
-    private func dpadRow<Content: View>(height: CGFloat,
-                                        @ViewBuilder content: () -> Content) -> some View {
-        HStack(spacing: 10) {
-            content()
-        }
-        .frame(height: height)
-    }
-
-    private func dpadKey(_ icon: String, _ label: String, height: CGFloat,
-                         action: @escaping () -> Void) -> some View {
-        TRKey(width: TR.Size.dpadKeyWidth, height: max(height - 2, TR.Size.hitTargetMin),
-              radius: TR.Radius.dpadKey, action: action) {
+    private func smallKey(_ icon: String, _ label: String, _ m: Metrics,
+                          action: @escaping () -> Void) -> some View {
+        TRKey(width: m.keyWidth, height: m.smallKey,
+              radius: min(TR.Radius.smallKey, m.smallKey / 2), action: action) {
             Image(systemName: icon).font(.system(size: 22))
         }
-        .frame(width: TR.Size.dpadColumn, height: height)
         .accessibilityLabel(label)
     }
 
-    private func smallKey(_ icon: String, _ label: String, width: CGFloat, height: CGFloat,
+    private func dpadKey(_ icon: String, _ label: String, _ m: Metrics,
+                         action: @escaping () -> Void) -> some View {
+        TRKey(width: m.dpadKey, height: m.dpadKey, radius: TR.Radius.dpadKey,
+              repeats: true, action: action) {
+            Image(systemName: icon).font(.system(size: 24, weight: .medium))
+        }
+        .frame(width: m.dpadColumn, height: m.dpadKey)
+        .accessibilityLabel(label)
+    }
+
+    private func ghost<L: View>(_ m: Metrics, _ label: String,
+                                action: @escaping () -> Void,
+                                @ViewBuilder label content: () -> L) -> some View {
+        TRGhostButton(width: m.dpadColumn, height: m.dpadKey, action: action, label: content)
+            .accessibilityLabel(label)
+    }
+
+    private func mediaKey(_ icon: String, _ label: String, _ m: Metrics,
                           action: @escaping () -> Void) -> some View {
-        TRKey(width: width, height: height, radius: TR.Radius.smallKey, action: action) {
+        TRKey(width: m.mediaWidth, height: m.media,
+              radius: min(TR.Radius.mediaKey, m.media / 2), action: action) {
             Image(systemName: icon).font(.system(size: 20))
         }
         .accessibilityLabel(label)
     }
+}
 
-    private func mediaKey(_ icon: String, _ label: String, width: CGFloat, height: CGFloat,
-                          action: @escaping () -> Void) -> some View {
-        TRKey(width: width, height: height, radius: TR.Radius.mediaKey, action: action) {
-            Image(systemName: icon).font(.system(size: 18))
+// Av- och påknappen: röd symbol i en rund yta, med rött sken i ljust läge.
+private struct PowerButton: View {
+    var action: () -> Void
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let colors = TR.Colors.of(scheme)
+        Button {
+            TRHaptics.power()
+            action()
+        } label: {
+            Image(systemName: "power")
+                .font(.system(size: 24, weight: .medium))
+                .foregroundStyle(colors.danger)
+                .frame(width: TR.Size.powerButton, height: TR.Size.powerButton)
+                .background {
+                    Circle()
+                        .fill(colors.surfaceElevated)
+                        .shadow(color: colors.danger.opacity(scheme == .dark ? 0 : 0.22),
+                                radius: 10)
+                }
+                .contentShape(Circle())
         }
-        .accessibilityLabel(label)
+        .buttonStyle(TRPressStyle())
+        .accessibilityLabel("Slå på eller av TV:n")
     }
-
-    // MARK: - Tema
-
-    /// Temaknappen visar det valda läget. Bara vid Automatiskt beror den på
-    /// omgivningen, som annars kan släpa efter en skrivning.
-    private var themeScheme: ColorScheme {
-        switch AppearanceMode(rawValue: appearanceRaw) ?? .system {
-        case .light: return .light
-        case .dark: return .dark
-        case .system: return scheme
-        }
-    }
-
-    private func toggleTheme() {
-        appearanceRaw = (themeScheme == .dark ? AppearanceMode.light : AppearanceMode.dark).rawValue
-    }
-
-    private func useSystemTheme() {
-        appearanceRaw = AppearanceMode.system.rawValue
-        withAnimation(.easeOut(duration: 0.2)) { toast = "Utseende: Automatiskt" }
-        Task {
-            try? await Task.sleep(nanoseconds: 1_800_000_000)
-            withAnimation(.easeOut(duration: 0.2)) { toast = nil }
-        }
-    }
-
-
 }
 
 enum RemoteState {
@@ -358,22 +350,21 @@ enum RemoteState {
     }
     func textColor(_ colors: TR.Colors) -> Color {
         switch self {
-        case .connected: return colors.greenText
-        case .failed: return colors.power
-        default: return colors.muted
+        case .connected: return colors.accentText
+        case .failed: return colors.danger
+        default: return colors.textPrimary
         }
     }
     func dotColor(_ colors: TR.Colors) -> Color {
         switch self {
-        case .connected: return colors.green
-        case .connecting: return colors.green
-        case .failed: return colors.power
-        case .disconnected: return colors.muted
+        case .connected, .connecting: return colors.accent
+        case .failed: return colors.danger
+        case .disconnected: return colors.textSecondary
         }
     }
 }
 
-// Punkt 9 med glöd. Pulserar under anslutning.
+// Punkten i statusraden. Pulserar under anslutning.
 struct StatusDot: View {
     var state: RemoteState
     @Environment(\.colorScheme) private var scheme
@@ -384,8 +375,7 @@ struct StatusDot: View {
         let colors = TR.Colors.of(scheme)
         Circle()
             .fill(state.dotColor(colors))
-            .frame(width: 9, height: 9)
-            .shadow(color: state.dotColor(colors).opacity(0.7), radius: 5)
+            .frame(width: TR.Size.statusDot, height: TR.Size.statusDot)
             .opacity(state == .connecting && dim && !reduceMotion ? 0.4 : 1)
             .animation(
                 state == .connecting && !reduceMotion

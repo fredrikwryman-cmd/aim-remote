@@ -89,17 +89,39 @@ jobs:
           sleep 8
           xcrun simctl terminate "$SIMULATOR_ID" se.aim.remote || true
 
-      - name: Run design screenshot tests
+      # Appen foljer telefonens lage, sa temat satts pa simulatorn och
+      # testerna kors en gang per lage.
+      - name: Run design screenshot tests (light)
         if: env.SKIP_SIZE != '1'
         continue-on-error: true
         run: |
           set -o pipefail
+          xcrun simctl ui "$SIMULATOR_ID" appearance light
+          sleep 3
           xcodebuild test-without-building \
             -project AiMRemote.xcodeproj \
             -scheme AiMRemote \
             -destination "id=$SIMULATOR_ID" \
             -derivedDataPath "$PWD/build/dd" \
-            -resultBundlePath "$PWD/build/shots-${{ matrix.size }}.xcresult" \
+            -resultBundlePath "$PWD/build/shots-light-${{ matrix.size }}.xcresult" \
+            -only-testing:AiMRemoteUITests/DesignShotTests \
+            -retry-tests-on-failure \
+            -test-iterations 3 \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Run design screenshot tests (dark)
+        if: env.SKIP_SIZE != '1'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcrun simctl ui "$SIMULATOR_ID" appearance dark
+          sleep 3
+          xcodebuild test-without-building \
+            -project AiMRemote.xcodeproj \
+            -scheme AiMRemote \
+            -destination "id=$SIMULATOR_ID" \
+            -derivedDataPath "$PWD/build/dd" \
+            -resultBundlePath "$PWD/build/shots-dark-${{ matrix.size }}.xcresult" \
             -only-testing:AiMRemoteUITests/DesignShotTests \
             -retry-tests-on-failure \
             -test-iterations 3 \
@@ -109,9 +131,11 @@ jobs:
         if: always() && env.SKIP_SIZE != '1'
         run: |
           OUT="build/screenshots/${{ matrix.size }}"
-          python3 scripts/export_screenshots.py \
-            "build/shots-${{ matrix.size }}.xcresult" \
-            "$OUT" "${{ matrix.size }}"
+          for MODE in light dark; do
+            BUNDLE="build/shots-$MODE-${{ matrix.size }}.xcresult"
+            [ -d "$BUNDLE" ] || continue
+            python3 scripts/export_screenshots.py "$BUNDLE" "$OUT" "${{ matrix.size }}"
+          done
           COUNT=$(ls -1 "$OUT"/*.png 2>/dev/null | wc -l | tr -d ' ')
           echo "Bilder: $COUNT"
           ls -la "$OUT" || true
@@ -134,7 +158,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TechRabbitRemote-shots-xcresult-${{ matrix.size }}
-          path: build/shots-${{ matrix.size }}.xcresult
+          path: |
+            build/shots-light-${{ matrix.size }}.xcresult
+            build/shots-dark-${{ matrix.size }}.xcresult
           if-no-files-found: ignore
 
       - name: Report result
