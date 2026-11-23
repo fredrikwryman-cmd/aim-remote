@@ -62,6 +62,15 @@ struct RemoteRoot: View {
         .onChange(of: connection.notice) { notice in
             if notice != nil { TRHaptics.error() }
         }
+        // Widgetens yta oppnar techrabbit://remote. Da visas fjarrskarmen och
+        // en oppen panel stangs.
+        .onOpenURL { url in
+            guard url.scheme?.lowercased() == "techrabbit",
+                  (url.host ?? url.lastPathComponent).lowercased() == "remote"
+            else { return }
+            close()
+            tab = .remote
+        }
     }
 
     @ViewBuilder

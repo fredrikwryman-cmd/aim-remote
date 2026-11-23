@@ -19,6 +19,15 @@
     <key>NSBonjourServices</key><array><string>_androidtvremote2._tcp</string></array>
     <key>NSMicrophoneUsageDescription</key><string>Tech Rabbit Remote skickar din röst till TV:n när du startar mikrofonen.</string>
     <key>ITSAppUsesNonExemptEncryption</key><false/>
+    <!-- Widgetens yta oppnar techrabbit://remote. -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key><string>Editor</string>
+            <key>CFBundleURLName</key><string>se.aim.remote</string>
+            <key>CFBundleURLSchemes</key><array><string>techrabbit</string></array>
+        </dict>
+    </array>
     <key>UIAppFonts</key>
     <array>
         <string>Archivo-Regular.ttf</string>
