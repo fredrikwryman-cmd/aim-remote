@@ -9,6 +9,12 @@ struct AiMRemoteApp: App {
     @AppStorage("tr.remote.onboarded") private var onboarded = false
     @Environment(\.scenePhase) private var scenePhase
 
+    init() {
+        // Startargument flyttas till appens egen domän, annars kan temat
+        // aldrig ändras under en UI-testkörning.
+        LaunchSeed.apply()
+    }
+
     var body: some Scene {
         WindowGroup {
             ZStack {

@@ -87,15 +87,41 @@ struct GlassSheet<Content: View>: View {
 
 // Rad i inställningskortet och i panelerna: 52 hög, ikon 20, etikett 15 w500.
 @MainActor
-struct SettingsRow<Trailing: View>: View {
+struct SettingsRow: View {
     var icon: String
     var title: String
     var value: String = ""
     var showsChevron = true
+    var accessory: AnyView?
     var action: (() -> Void)?
-    @ViewBuilder var trailing: Trailing
 
     @Environment(\.colorScheme) private var scheme
+
+    /// Rad utan tillbehör. En efterställd stängning är alltid handlingen.
+    init(icon: String, title: String, value: String = "",
+         showsChevron: Bool = true, action: (() -> Void)? = nil) {
+        self.icon = icon
+        self.title = title
+        self.value = value
+        self.showsChevron = showsChevron
+        self.accessory = nil
+        self.action = action
+    }
+
+    /// Rad med tillbehör (vippa, snurra). Tillbehöret skickas alltid med
+    /// etiketten `accessory:`. Då kan en efterställd stängning bara träffa
+    /// `action`, och initieraren blir aldrig tvetydig.
+    init<Accessory: View>(icon: String, title: String, value: String = "",
+                          showsChevron: Bool = true,
+                          @ViewBuilder accessory: () -> Accessory,
+                          action: (() -> Void)? = nil) {
+        self.icon = icon
+        self.title = title
+        self.value = value
+        self.showsChevron = showsChevron
+        self.accessory = AnyView(accessory())
+        self.action = action
+    }
 
     var body: some View {
         let colors = TR.Colors.of(scheme)
@@ -116,7 +142,7 @@ struct SettingsRow<Trailing: View>: View {
                     .foregroundStyle(colors.muted)
                     .lineLimit(1)
             }
-            trailing
+            if let accessory { accessory }
             if showsChevron {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 15, weight: .semibold))
@@ -133,14 +159,6 @@ struct SettingsRow<Trailing: View>: View {
                 .accessibilityLabel(value.isEmpty ? title : "\(title), \(value)")
         } else {
             row
-        }
-    }
-}
-
-extension SettingsRow where Trailing == EmptyView {
-    init(icon: String, title: String, value: String = "", showsChevron: Bool = true, action: (() -> Void)? = nil) {
-        self.init(icon: icon, title: title, value: value, showsChevron: showsChevron, action: action) {
-            EmptyView()
         }
     }
 }

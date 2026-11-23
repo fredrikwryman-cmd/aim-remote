@@ -38,12 +38,13 @@ struct SettingsScreen: View {
                     SettingsRow(
                         icon: "iphone.radiowaves.left.and.right",
                         title: "Knappvibration",
-                        showsChevron: false
-                    ) {
-                        Toggle("Knappvibration", isOn: $haptics)
-                            .labelsHidden()
-                            .tint(colors.green)
-                    }
+                        showsChevron: false,
+                        accessory: {
+                            Toggle("Knappvibration", isOn: $haptics)
+                                .labelsHidden()
+                                .tint(colors.green)
+                        }
+                    )
                     TRDivider()
                     SettingsRow(icon: "circle.lefthalf.filled", title: "Utseende", value: appearance.title) {
                         openPanel(.appearance)

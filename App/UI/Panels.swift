@@ -303,10 +303,14 @@ struct ConnectionPanel: View {
                     PanelNotice(connection: connection)
 
                     VStack(spacing: 0) {
-                        SettingsRow(icon: "dot.radiowaves.left.and.right", title: connection.status,
-                                    showsChevron: false) {
-                            if connection.busy { ProgressView().controlSize(.small) }
-                        }
+                        SettingsRow(icon: "dot.radiowaves.left.and.right",
+                                    title: connection.status,
+                                    showsChevron: false,
+                                    accessory: {
+                                        if connection.busy {
+                                            ProgressView().controlSize(.small)
+                                        }
+                                    })
                         TRDivider()
                         SettingsRow(icon: "tv", title: "Välj TV", value: connection.tvName) {
                             openPanel(.chooseTV)
