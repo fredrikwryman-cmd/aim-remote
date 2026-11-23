@@ -165,6 +165,12 @@ enum TR {
         static let hitTargetMin: CGFloat = 44
         static let panelPadding: CGFloat = 12
         static let panelGap: CGFloat = 14
+        // SPEC R03: inställningskortet har fem rader à 52.
+        static let settingsRow: CGFloat = 52
+        // SPEC R04: Anslut-knappen är 52 hög, radie 26 (TR.Radius.primaryButton).
+        static let primaryButton: CGFloat = 52
+        // SPEC R04: raderna i bladet är 56 höga, radie 18 (TR.Radius.sheetRow).
+        static let sheetRow: CGFloat = 56
     }
 
     enum Radius {
