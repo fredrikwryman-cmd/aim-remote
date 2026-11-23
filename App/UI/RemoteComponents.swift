@@ -268,6 +268,8 @@ struct TRIconButton: View {
     var label: String
     var action: () -> Void
     var longPress: (() -> Void)?
+    /// Bara för diagnos: läses av UI-testet för att se appens tillstånd.
+    var diagnosticValue: String?
 
     @Environment(\.colorScheme) private var scheme
 
@@ -287,6 +289,7 @@ struct TRIconButton: View {
         }
         .buttonStyle(TRPressStyle())
         .accessibilityLabel(label)
+        .accessibilityValue(diagnosticValue ?? "")
         // Gesten knyts bara på när den efterfrågas. Läggs den på varje ikonknapp
         // kan ett långsamt syntetiserat tryck räknas som ett långt tryck.
         .simultaneousGesture(

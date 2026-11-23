@@ -86,7 +86,8 @@ struct RemoteScreen: View {
                 variant: .flat,
                 label: themeScheme == .dark ? "Byt till ljust utseende" : "Byt till mörkt utseende",
                 action: toggleTheme,
-                longPress: useSystemTheme
+                longPress: useSystemTheme,
+                diagnosticValue: appearanceRaw
             )
             TRIconButton(icon: "tv", variant: .ghost, label: "Välj TV") {
                 openPanel(.chooseTV)

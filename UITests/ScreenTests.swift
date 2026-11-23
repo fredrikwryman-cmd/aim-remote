@@ -98,8 +98,16 @@ final class ScreenTests: XCTestCase {
         let app = launch(theme: "light")
         let toDark = app.buttons["Byt till mörkt utseende"]
         XCTAssertTrue(toDark.waitForExistence(timeout: 60))
+        // Temaknappens accessibilityValue är appearanceRaw. Läs det före och
+        // efter trycket, så att felmeddelandet visar om trycket nådde fram.
+        let before = toDark.value as? String ?? "(inget värde)"
         toDark.tap()
-        XCTAssertTrue(app.buttons["Byt till ljust utseende"].waitForExistence(timeout: 5))
+        let switched = app.buttons["Byt till ljust utseende"].waitForExistence(timeout: 5)
+        let themeButton = app.buttons
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Byt till"))
+            .firstMatch
+        let after = themeButton.value as? String ?? "(inget värde)"
+        XCTAssertTrue(switched, "appearanceRaw före trycket: \(before), efter: \(after)")
     }
 
     private func first(_ app: XCUIApplication, beginningWith prefix: String) -> XCUIElement {
