@@ -287,8 +287,11 @@ struct TRIconButton: View {
         }
         .buttonStyle(TRPressStyle())
         .accessibilityLabel(label)
+        // Gesten knyts bara på när den efterfrågas. Läggs den på varje ikonknapp
+        // kan ett långsamt syntetiserat tryck räknas som ett långt tryck.
         .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.6).onEnded { _ in longPress?() }
+            LongPressGesture(minimumDuration: 0.6).onEnded { _ in longPress?() },
+            including: longPress == nil ? .subviews : .all
         )
     }
 }
