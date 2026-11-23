@@ -1,6 +1,12 @@
 # Tech Rabbit Remote
 
-En fristående iPhone-fjärr för TCL 43P635 med Android TV 11. Arbetsnamn: **Tech Rabbit Remote**.
+En fristående fjärrkontroll för iPhone, byggd i SwiftUI, för TCL 43P635 med
+Android TV 11. Arbetsnamn: **Tech Rabbit Remote**. Appen styr TV:n direkt över
+det lokala nätverket med Android TV Remote Protocol v2 — ingen server, inget
+konto och inget tredjepartsbibliotek.
+
+Licens: [MIT](LICENSE). Referenser och tredjepartslicenser:
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Två huvudvyer enligt användarens referenser: **Fjärr** och **Inställningar**. Mörk bakgrund, mjukt rundade knappar och grön markering. Anslutning, sifferknappar, tangentbord och hjälp öppnas som underordnade paneler. Ingen Apps- eller Touchpad-flik, reklam eller prenumeration.
 
@@ -60,3 +66,9 @@ Ingen server för användardata, inget analys-SDK och ingen reklam. Nätverkskom
 Implementation skriven för detta projekt utifrån Android TV Remote v2:s meddelandeformat. Protokollbeteende jämfört med https://github.com/tronikos/androidtvremote2 och https://github.com/odyshewroman/AndroidTVRemoteControl. Ingen kod eller demonyckel från Swift-biblioteket distribueras. Ursprunglig parningsspecifikation: https://android.googlesource.com/platform/external/google-tv-pairing-protocol/ .
 
 Appen är fristående och inte utgiven av TCL, Google eller Apps Venture.
+
+## Licens
+
+Koden är utgiven under MIT-licensen, se [LICENSE](LICENSE). Referensprojekt och
+deras licenstexter finns i
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -14,3 +14,8 @@ xcuserdata/
 __pycache__/
 *.pyc
 *.p8
+*.cer
+*.certSigningRequest
+.env
+.env.*
+!.env.example
