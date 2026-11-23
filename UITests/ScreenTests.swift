@@ -101,7 +101,10 @@ final class ScreenTests: XCTestCase {
         // Temaknappens accessibilityValue är appearanceRaw. Läs det före och
         // efter trycket, så att felmeddelandet visar om trycket nådde fram.
         let before = toDark.value as? String ?? "(inget värde)"
-        toDark.tap()
+        // Ett vanligt tap på elementet nådde aldrig fram: den samtidiga
+        // långtrycksgesten åt upp det syntetiserade trycket. Ett tryck på
+        // knappens mittkoordinat går förbi den.
+        toDark.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         let switched = app.buttons["Byt till ljust utseende"].waitForExistence(timeout: 5)
         let themeButton = app.buttons
             .matching(NSPredicate(format: "label BEGINSWITH %@", "Byt till"))

@@ -26,13 +26,17 @@ struct RemoteScreen: View {
         var height: CGFloat
     }
 
+    /// SPEC R02: 12 + 140 + 14 + (3 x 72 med gap 10) + 14 + 44 + 12 = 472.
     private static let basePanelHeight: CGFloat =
         TR.Size.panelPadding * 2 + TR.Size.rockerHeight + TR.Size.panelGap
-            + TR.Size.dpadRow * 3 + TR.Size.panelGap + TR.Size.mediaKey
+            + TR.Size.dpadRow * 3 + TR.Size.dpadGap * 2 + TR.Size.panelGap + TR.Size.mediaKey
 
     private func metrics(width: CGFloat, height: CGFloat) -> PanelMetrics {
-        // Aldrig under 0,82: då blir mediatangenten mindre än träffytan.
-        let scale = min(1.45, max(0.82, height / Self.basePanelHeight))
+        // Facit ritar panelen i fasta pt-mått. Den växer aldrig över SPEC:ens
+        // storlekar; blir det höjd över ligger den under panelen, som i facit.
+        // Krymper bara på skärmar som är för korta, och aldrig under 0,82:
+        // då blir mediatangenten mindre än träffytan.
+        let scale = min(1.0, max(0.82, height / Self.basePanelHeight))
         let gap = TR.Size.panelGap * scale
         let rocker = TR.Size.rockerHeight * scale
         let dpadRow = TR.Size.dpadRow * scale
@@ -46,7 +50,8 @@ struct RemoteScreen: View {
             dpadRow: dpadRow,
             okKey: TR.Size.okKeyHeight * scale,
             media: media,
-            height: TR.Size.panelPadding * 2 + rocker + gap + dpadRow * 3 + gap + media
+            height: TR.Size.panelPadding * 2 + rocker + gap + dpadRow * 3
+                + TR.Size.dpadGap * 2 * scale + gap + media
         )
     }
 
@@ -197,7 +202,7 @@ struct RemoteScreen: View {
             }
 
             // D-pad: 3 x 82 kolumner, 3 x 72 rader, gap 10.
-            VStack(spacing: 0) {
+            VStack(spacing: TR.Size.dpadGap * (m.dpadRow / TR.Size.dpadRow)) {
                 dpadRow(height: m.dpadRow) {
                     TRGhostButton(width: TR.Size.dpadColumn, height: m.dpadRow) {
                         openPanel(.numbers)

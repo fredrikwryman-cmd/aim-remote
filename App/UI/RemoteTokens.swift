@@ -154,6 +154,8 @@ enum TR {
         static let dpadKeyHeight: CGFloat = 70
         static let dpadColumn: CGFloat = 82
         static let dpadRow: CGFloat = 72
+        // SPEC R02: d-padens rutnät har gap 10 mellan raderna.
+        static let dpadGap: CGFloat = 10
         static let okKeyWidth: CGFloat = 82
         static let okKeyHeight: CGFloat = 74
         static let mediaKey: CGFloat = 44
