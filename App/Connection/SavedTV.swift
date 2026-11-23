@@ -35,9 +35,11 @@ final class KeychainTVStorage: SavedTVStorage {
     init(account: String = "tvs") { self.account = account }
 
     private var base: [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: Self.service,
-         kSecAttrAccount as String: account]
+        Shared.withGroup([
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Self.service,
+            kSecAttrAccount as String: account
+        ])
     }
 
     func read() -> Data? {

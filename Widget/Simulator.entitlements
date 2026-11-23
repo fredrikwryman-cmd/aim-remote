@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <!-- Simulator only. -->
+    <key>application-identifier</key><string>se.aim.remote.widget</string>
+    <key>keychain-access-groups</key><array>
+        <string>se.aim.remote</string>
+        <string>$(AppIdentifierPrefix)se.aim.remote.shared</string>
+    </array>
+    <key>com.apple.security.application-groups</key><array>
+        <string>group.se.aim.remote</string>
+    </array>
+    <key>get-task-allow</key><true/>
+</dict></plist>

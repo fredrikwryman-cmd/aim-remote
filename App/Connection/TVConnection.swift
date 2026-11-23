@@ -4,6 +4,7 @@ import Security
 import CryptoKit
 import Combine
 import AVFoundation
+import WidgetKit
 import AiMCore
 
 @MainActor
@@ -26,14 +27,20 @@ final class TVConnection: ObservableObject {
 
     private let store: SavedTVStore
 
-    init(store: SavedTVStore = SavedTVStore()) {
-        self.store = store
+    init(store: SavedTVStore? = nil) {
+        // Nyckelringen flyttas till den delade gruppen innan listan läses, så
+        // att widgeten ser samma identitet och samma pinning.
+        if Shared.sharedGroupAvailable {
+            KeychainMigrator.run(group: Shared.keychainGroup, using: SystemKeychainMover())
+        }
+        self.store = store ?? SavedTVStore()
         migrateLegacyIfNeeded()
         refreshSaved()
-        if let active = store.active {
+        if let active = self.store.active {
             host = active.host
             tvName = active.name
         }
+        publishToWidget()
     }
 
     /// Den TV som sparades före listan blir första posten. Går att köra om.
@@ -48,6 +55,18 @@ final class TVConnection: ObservableObject {
     private func refreshSaved() {
         savedTVs = store.all
         activeTVID = store.activeID
+        publishToWidget()
+    }
+
+    /// Widgeten läser aktiv TV ur App Group. Ändras den laddas den om.
+    private func publishToWidget() {
+        let active = store.active
+        let name = active?.name ?? (host.isEmpty ? nil : tvName)
+        let changed = Shared.activeTVID != active?.id || Shared.activeTVName != name
+        guard changed else { return }
+        Shared.activeTVID = active?.id
+        Shared.activeTVName = name
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private var connection: NWConnection?

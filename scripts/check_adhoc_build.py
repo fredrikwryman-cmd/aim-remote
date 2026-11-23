@@ -48,6 +48,12 @@ def main() -> int:
     print("Team:      %s" % ", ".join(profile.get("TeamIdentifier", [])))
     print("Utgar:     %s" % profile.get("ExpirationDate"))
 
+    entitlements = profile.get("Entitlements") or {}
+    groups = entitlements.get("com.apple.security.application-groups") or []
+    keychain = entitlements.get("keychain-access-groups") or []
+    print("App Groups: %s" % (", ".join(groups) if groups else "inga"))
+    print("Keychain:   %s" % (", ".join(keychain) if keychain else "inga"))
+
     devices = profile.get("ProvisionedDevices") or []
     print("Enheter i profilen: %d" % len(devices))
     for device in devices:

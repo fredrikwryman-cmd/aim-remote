@@ -92,26 +92,31 @@ enum IdentityStore {
     static let certificateLabel = "AiM Remote client v1"
 
     static func loadOrCreate() throws -> ClientIdentity {
-        let keyQuery: [String: Any] = [
+        let keyQuery: [String: Any] = Shared.withGroup([
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
             kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
             kSecReturnRef as String: true
-        ]
+        ])
         var raw: CFTypeRef?
         let status = SecItemCopyMatching(keyQuery as CFDictionary, &raw)
         let key: SecKey
         if status == errSecSuccess, let raw {
             key = (raw as! SecKey)
         } else if status == errSecItemNotFound {
+            var privateAttributes: [String: Any] = [
+                kSecAttrIsPermanent as String: true,
+                kSecAttrApplicationTag as String: tag,
+                kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            ]
+            if Shared.sharedGroupAvailable {
+                // Nya nycklar skapas direkt i den delade gruppen.
+                privateAttributes[kSecAttrAccessGroup as String] = Shared.keychainGroup
+            }
             let attributes: [String: Any] = [
                 kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
                 kSecAttrKeySizeInBits as String: 2048,
-                kSecPrivateKeyAttrs as String: [
-                    kSecAttrIsPermanent as String: true,
-                    kSecAttrApplicationTag as String: tag,
-                    kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-                ]
+                kSecPrivateKeyAttrs as String: privateAttributes
             ]
             var error: Unmanaged<CFError>?
             guard let created = SecKeyCreateRandomKey(attributes as CFDictionary, &error) else {
@@ -121,9 +126,11 @@ enum IdentityStore {
         } else { throw AppFailure.message("Nyckelringen kunde inte öppnas (\(status)).") }
         guard let publicKey = SecKeyCopyPublicKey(key) else { throw AppFailure.message("Publik nyckel saknas.") }
 
-        let certQuery: [String: Any] = [kSecClass as String: kSecClassCertificate,
-                                      kSecAttrLabel as String: certificateLabel,
-                                      kSecReturnRef as String: true]
+        let certQuery: [String: Any] = Shared.withGroup([
+            kSecClass as String: kSecClassCertificate,
+            kSecAttrLabel as String: certificateLabel,
+            kSecReturnRef as String: true
+        ])
         raw = nil
         let certStatus = SecItemCopyMatching(certQuery as CFDictionary, &raw)
         let cert: SecCertificate
@@ -133,17 +140,22 @@ enum IdentityStore {
             guard let created = SecCertificateCreateWithData(nil, data as CFData) else {
                 throw AppFailure.message("Kunde inte skapa klientcertifikatet.")
             }
-            let add: [String: Any] = [kSecClass as String: kSecClassCertificate,
-                                     kSecValueRef as String: created,
-                                     kSecAttrLabel as String: certificateLabel]
+            let add: [String: Any] = Shared.withGroup([
+                kSecClass as String: kSecClassCertificate,
+                kSecValueRef as String: created,
+                kSecAttrLabel as String: certificateLabel
+            ])
             guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else {
                 throw AppFailure.message("Kunde inte spara klientcertifikatet.")
             }
             cert = created
         } else { throw AppFailure.message("Klientcertifikatet kunde inte läsas.") }
 
-        let query: [String: Any] = [kSecClass as String: kSecClassIdentity,
-                                   kSecReturnRef as String: true, kSecMatchLimit as String: kSecMatchLimitAll]
+        let query: [String: Any] = Shared.withGroup([
+            kSecClass as String: kSecClassIdentity,
+            kSecReturnRef as String: true,
+            kSecMatchLimit as String: kSecMatchLimitAll
+        ])
         raw = nil
         guard SecItemCopyMatching(query as CFDictionary, &raw) == errSecSuccess,
               let identities = raw as? [SecIdentity] else { throw AppFailure.message("Klientidentiteten saknas.") }
@@ -226,7 +238,10 @@ enum TrustStore {
     }
     static func forget(host: String) { SecItemDelete(base(host) as CFDictionary) }
     private static func base(_ host: String) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: "aim.remote.tv-trust.v1", kSecAttrAccount as String: host.lowercased()]
+        Shared.withGroup([
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "aim.remote.tv-trust.v1",
+            kSecAttrAccount as String: host.lowercased()
+        ])
     }
 }

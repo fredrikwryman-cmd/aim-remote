@@ -30,7 +30,36 @@ targets:
         PRODUCT_NAME: AiMRemote
         TARGETED_DEVICE_FAMILY: '1'
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: App/AiMRemote.entitlements
         'CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]': App/Simulator.entitlements
+    dependencies:
+      - package: AiMCore
+      - target: TechRabbitWidget
+        embed: true
+  TechRabbitWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+      - path: Widget
+        excludes:
+          - Info.plist
+          - Widget.entitlements
+          - Simulator.entitlements
+      # Delas med appen: samma klientidentitet, samma lista och samma pinning.
+      - path: App/Connection/IdentityStore.swift
+      - path: App/Connection/SavedTV.swift
+      - path: App/Connection/SharedStore.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: se.aim.remote.widget
+        PRODUCT_NAME: TechRabbitWidget
+        INFOPLIST_FILE: Widget/Info.plist
+        IPHONEOS_DEPLOYMENT_TARGET: '17.0'
+        TARGETED_DEVICE_FAMILY: '1'
+        SKIP_INSTALL: YES
+        CODE_SIGN_ENTITLEMENTS: Widget/Widget.entitlements
+        'CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]': Widget/Simulator.entitlements
     dependencies:
       - package: AiMCore
   AiMRemoteTests:
@@ -58,6 +87,7 @@ schemes:
     build:
       targets:
         AiMRemote: all
+        TechRabbitWidget: all
     test:
       targets:
         - AiMRemoteTests

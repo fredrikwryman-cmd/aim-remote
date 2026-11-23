@@ -117,7 +117,7 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           ls -la build/adhoc
 
-      - name: Verify IPA and embedded profile
+      - name: Verify IPA and embedded profiles
         run: |
           set -o pipefail
           IPA=$(ls build/adhoc/*.ipa | head -1)
@@ -129,6 +129,19 @@ jobs:
           echo "App: $APP"
           python3 "$GITHUB_WORKSPACE/scripts/check_adhoc_build.py" "$APP" "$DEVICE_UDID"
           codesign -dv --verbose=2 "$APP" 2>&1 | sed -n "1,12p"
+          # Widgeten har en egen profil och maste ocksa innehalla telefonen.
+          FOUND=0
+          for EXT in "$APP"/PlugIns/*.appex; do
+            [ -d "$EXT" ] || continue
+            FOUND=1
+            echo "Tillagg: $EXT"
+            python3 "$GITHUB_WORKSPACE/scripts/check_adhoc_build.py" "$EXT" "$DEVICE_UDID"
+            codesign -dv --verbose=2 "$EXT" 2>&1 | sed -n "1,8p"
+          done
+          if [ "$FOUND" = "0" ]; then
+            echo "Hittade inget widget-tillagg i IPA:n." >&2
+            exit 1
+          fi
 
       - name: Upload IPA
         if: always()

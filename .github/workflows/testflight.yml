@@ -111,6 +111,13 @@ jobs:
           /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c "Print :ITSAppUsesNonExemptEncryption" "$APP/Info.plist"
           codesign -dv --verbose=2 "$APP" 2>&1 | sed -n "1,12p"
+          # Widgeten ska ligga med och vara signerad med egen profil.
+          for EXT in "$APP"/PlugIns/*.appex; do
+            [ -d "$EXT" ] || continue
+            echo "Tillagg: $EXT"
+            /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$EXT/Info.plist"
+            codesign -dv --verbose=2 "$EXT" 2>&1 | sed -n "1,8p"
+          done
 
       - name: Upload to TestFlight
         run: |
