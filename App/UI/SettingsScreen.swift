@@ -25,7 +25,10 @@ struct SettingsScreen: View {
 
                 VStack(spacing: 0) {
                     SettingsRow(icon: "tv", title: "TV och anslutning",
-                                value: connection.ready ? connection.tvName : "Välj TV") {
+                                value: connection.ready ? connection.tvName : "Välj TV",
+                                customIcon: AnyView(
+                                    TRDisplayIcon(width: 26, color: colors.textPrimary)
+                                )) {
                         openPanel(.connection)
                     }
                     TRDivider()

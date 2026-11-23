@@ -280,3 +280,28 @@ struct TRStatusPill: View {
         .buttonStyle(TRPressStyle())
     }
 }
+
+// TV-ikonen i facit: en konturad skarm med fot. SF-symbolen "tv" ritas med
+// fylld skarm, darfor ritas glyfen har i stallet.
+struct TRDisplayIcon: View {
+    var width: CGFloat
+    var color: Color
+
+    var body: some View {
+        let screen = width * 0.74
+        let stroke = max(width * 0.082, 1.4)
+        VStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: width * 0.15, style: .continuous)
+                .stroke(color, lineWidth: stroke)
+                .frame(width: width, height: screen)
+            Rectangle()
+                .fill(color)
+                .frame(width: stroke, height: width * 0.10)
+            RoundedRectangle(cornerRadius: stroke / 2, style: .continuous)
+                .fill(color)
+                .frame(width: width * 0.38, height: stroke)
+        }
+        .frame(width: width, height: screen + width * 0.10 + stroke)
+        .accessibilityHidden(true)
+    }
+}

@@ -260,26 +260,30 @@ struct RemoteBackground: View {
     var body: some View {
         let colors = TR.Colors.of(scheme)
         GeometryReader { geometry in
-            let w = geometry.size.width
             let h = geometry.size.height
             ZStack {
                 colors.background
-                RadialGradient(
-                    colors: [colors.glow, colors.glow.opacity(0)],
-                    center: UnitPoint(x: 0.85, y: 1.02),
-                    startRadius: 0,
-                    endRadius: max(w, h) * 0.85
-                )
-                RadialGradient(
-                    colors: [colors.glow.opacity(0.6), colors.glow.opacity(0)],
-                    center: UnitPoint(x: 0.1, y: 1.05),
-                    startRadius: 0,
-                    endRadius: max(w, h) * 0.55
-                )
+                // Skenet ligger i nederkanten och klingar av snabbt, som i
+                // facit: tydligt i nedre hornen, borta vid panelen.
+                glow(colors, at: UnitPoint(x: 0.88, y: 1.06), radius: h * 0.52, strength: 1)
+                glow(colors, at: UnitPoint(x: 0.10, y: 1.08), radius: h * 0.30, strength: 0.7)
             }
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
+    }
+
+    private func glow(_ colors: TR.Colors, at center: UnitPoint,
+                      radius: CGFloat, strength: Double) -> some View {
+        RadialGradient(
+            gradient: Gradient(stops: [
+                .init(color: colors.glow.opacity(strength), location: 0),
+                .init(color: colors.glow.opacity(strength * 0.45), location: 0.30),
+                .init(color: colors.glow.opacity(strength * 0.10), location: 0.60),
+                .init(color: colors.glow.opacity(0), location: 1)
+            ]),
+            center: center, startRadius: 0, endRadius: radius
+        )
     }
 }
 

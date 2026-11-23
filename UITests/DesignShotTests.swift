@@ -66,7 +66,7 @@ final class DesignShotTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = [
             "-tr.remote.onboarded", onboarded ? "YES" : "NO",
-            "-tr.remote.haptics", "NO"
+            "-tr.remote.haptics", "YES"
         ]
         app.launch()
         return app

@@ -112,9 +112,15 @@ struct RemoteScreen: View {
 
             Spacer(minLength: 8)
 
-            TRIconButton(icon: "tv", variant: .ghost, iconSize: 24, label: "Välj TV") {
+            Button {
                 openPanel(.chooseTV)
+            } label: {
+                TRDisplayIcon(width: 27, color: colors.textPrimary)
+                    .frame(width: TR.Size.hitTargetMin, height: TR.Size.hitTargetMin)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(TRPressStyle())
+            .accessibilityLabel("Välj TV")
         }
         .padding(.horizontal, TR.Size.headerPadding)
         .frame(height: TR.Size.headerCard)

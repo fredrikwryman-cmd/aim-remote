@@ -95,18 +95,21 @@ struct SettingsRow: View {
     var value: String = ""
     var showsChevron = true
     var accessory: AnyView?
+    var customIcon: AnyView?
     var action: (() -> Void)?
 
     @Environment(\.colorScheme) private var scheme
 
     /// Rad utan tillbehör. En efterställd stängning är alltid handlingen.
     init(icon: String, title: String, value: String = "",
-         showsChevron: Bool = true, action: (() -> Void)? = nil) {
+         showsChevron: Bool = true, customIcon: AnyView? = nil,
+         action: (() -> Void)? = nil) {
         self.icon = icon
         self.title = title
         self.value = value
         self.showsChevron = showsChevron
         self.accessory = nil
+        self.customIcon = customIcon
         self.action = action
     }
 
@@ -115,6 +118,7 @@ struct SettingsRow: View {
     /// `action`, och initieraren blir aldrig tvetydig.
     init<Accessory: View>(icon: String, title: String, value: String = "",
                           showsChevron: Bool = true,
+                          customIcon: AnyView? = nil,
                           @ViewBuilder accessory: () -> Accessory,
                           action: (() -> Void)? = nil) {
         self.icon = icon
@@ -122,16 +126,23 @@ struct SettingsRow: View {
         self.value = value
         self.showsChevron = showsChevron
         self.accessory = AnyView(accessory())
+        self.customIcon = customIcon
         self.action = action
     }
 
     var body: some View {
         let colors = TR.Colors.of(scheme)
         let row = HStack(spacing: 18) {
-            Image(systemName: icon)
-                .font(.system(size: 22))
-                .foregroundStyle(colors.textPrimary)
-                .frame(width: 26)
+            Group {
+                if let customIcon {
+                    customIcon
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 22))
+                        .foregroundStyle(colors.textPrimary)
+                }
+            }
+            .frame(width: 26)
             Text(title)
                 .font(TR.Font.body)
                 .trLabelScaling()
