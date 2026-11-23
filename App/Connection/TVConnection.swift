@@ -17,6 +17,38 @@ final class TVConnection: ObservableObject {
     @Published var notice: String?
     @Published var host = UserDefaults.standard.string(forKey: "tv.host") ?? ""
     @Published var tvName = UserDefaults.standard.string(forKey: "tv.name") ?? "TCL 43P635"
+    /// Sparade TV-apparater och den som är aktiv.
+    @Published private(set) var savedTVs: [SavedTV] = []
+    @Published private(set) var activeTVID: String?
+    /// Sant när en känd adress visade ett annat certifikat. Gränssnittet
+    /// erbjuder då "Parkoppla igen".
+    @Published private(set) var needsRepair = false
+
+    private let store: SavedTVStore
+
+    init(store: SavedTVStore = SavedTVStore()) {
+        self.store = store
+        migrateLegacyIfNeeded()
+        refreshSaved()
+        if let active = store.active {
+            host = active.host
+            tvName = active.name
+        }
+    }
+
+    /// Den TV som sparades före listan blir första posten. Går att köra om.
+    private func migrateLegacyIfNeeded() {
+        let legacyHost = UserDefaults.standard.string(forKey: "tv.host")
+        let legacyName = UserDefaults.standard.string(forKey: "tv.name")
+        var pin: Data?
+        if let legacyHost, !legacyHost.isEmpty { pin = try? TrustStore.read(host: legacyHost) }
+        store.migrateLegacy(host: legacyHost, name: legacyName, fingerprint: pin)
+    }
+
+    private func refreshSaved() {
+        savedTVs = store.all
+        activeTVID = store.activeID
+    }
 
     private var connection: NWConnection?
     private var identity: ClientIdentity?
@@ -44,7 +76,8 @@ final class TVConnection: ObservableObject {
         host = clean
         do {
             identity = try IdentityStore.loadOrCreate()
-            let pin = try TrustStore.read(host: clean)
+            let saved = store.tv(host: clean)
+            let pin = saved?.fingerprint ?? (try TrustStore.read(host: clean))
             if pin == nil && !pair {
                 status = "TV:n behöver parkopplas"; notice = "Tryck på Parkoppla och ange koden som visas på TV:n."
                 return
@@ -69,11 +102,33 @@ final class TVConnection: ObservableObject {
                     }
                     let raw = SecCertificateCopyData(cert) as Data
                     let fingerprint = Data(SHA256.hash(data: raw))
-                    // Pairing authenticates this certificate through the on-screen code.
-                    guard pair || pin == fingerprint else {
+                    // Parkopplingen styrker certifikatet med koden på skärmen.
+                    // I övriga fall avgör fingeravtrycket, aldrig adressen.
+                    switch TVTrust.decide(saved: self.store.all, host: clean,
+                                          fingerprint: fingerprint, pairing: pair) {
+                    case .pairing:
+                        break
+                    case .accept(let id, let hostChanged):
+                        if hostChanged {
+                            // Samma certifikat på ny adress: bara host uppdateras.
+                            self.store.upsert(name: self.tvName, host: clean,
+                                              fingerprint: fingerprint, makeActive: false)
+                        }
+                        self.store.setActive(id)
+                        self.refreshSaved()
+                    case .mismatch(let name):
                         complete(false)
-                        self.fail("TV:ns identitet har ändrats. Parkoppla på nytt om det är din TV.")
+                        self.needsRepair = true
+                        self.fail("TV:n på \(clean) visar ett annat certifikat än \(name). Parkoppla igen om det är din TV.")
                         return
+                    case .unknown:
+                        // Kan vara en parkoppling gjord innan listan fanns.
+                        guard pin == fingerprint else {
+                            complete(false)
+                            self.needsRepair = true
+                            self.fail("TV:ns identitet har ändrats. Parkoppla på nytt om det är din TV.")
+                            return
+                        }
                     }
                     self.peerCertificate = raw; self.peerKey = key
                     complete(true)
@@ -123,13 +178,55 @@ final class TVConnection: ObservableObject {
         do { send(try remote.text(value)); return true }
         catch { notice = "Öppna ett textfält på TV:n först. Textinmatning stöds inte av alla TV-appar."; return false }
     }
+    /// Byter till en sparad TV och ansluter direkt.
+    func select(_ tv: SavedTV) {
+        disconnect()
+        store.setActive(tv.id)
+        refreshSaved()
+        host = tv.host
+        tvName = tv.name
+        needsRepair = false
+        UserDefaults.standard.set(tv.host, forKey: "tv.host")
+        UserDefaults.standard.set(tv.name, forKey: "tv.name")
+        connect()
+    }
+
+    /// Tar bort en TV ur listan och dess pinning. Var den aktiv blir appen
+    /// "Inte ansluten".
+    func forget(id: String) {
+        guard let tv = store.tv(id: id) else { return }
+        let wasActive = store.activeID == tv.id || tv.host == host
+        if wasActive { disconnect() }
+        store.forget(id: tv.id)
+        refreshSaved()
+        if wasActive {
+            needsRepair = false
+            host = ""
+            UserDefaults.standard.removeObject(forKey: "tv.host")
+            status = "Inte ansluten"
+        }
+    }
+
+    /// Glömmer den TV som är aktiv just nu.
     func forget() {
+        if let id = store.activeID ?? store.tv(host: host)?.id {
+            forget(id: id)
+            return
+        }
         disconnect(); TrustStore.forget(host: host)
         UserDefaults.standard.removeObject(forKey: "tv.host")
         status = "Parkopplingen är glömd på iPhone"
     }
+
     func reconnectIfSaved() {
-        guard !ready, !busy, !host.isEmpty else { return }
+        guard !ready, !busy else { return }
+        if let active = store.active {
+            host = active.host
+            tvName = active.name
+            connect()
+            return
+        }
+        guard !host.isEmpty else { return }
         if (try? TrustStore.read(host: host)) != nil { connect() }
     }
     func disconnect() {
@@ -194,7 +291,12 @@ final class TVConnection: ObservableObject {
                 armDeadline(seconds: 120)
             } else if pairing.phase == .complete {
                 guard let cert = peerCertificate else { throw AppFailure.message("TV-certifikatet saknas.") }
-                try TrustStore.write(host: host, data: Data(SHA256.hash(data: cert)))
+                let fingerprint = Data(SHA256.hash(data: cert))
+                store.upsert(name: tvName, host: host, fingerprint: fingerprint)
+                refreshSaved()
+                needsRepair = false
+                // Skrivs även på det gamla stället, så att en nedgradering fungerar.
+                try TrustStore.write(host: host, data: fingerprint)
                 UserDefaults.standard.set(host, forKey: "tv.host")
                 UserDefaults.standard.set(tvName, forKey: "tv.name")
                 connect()
@@ -205,7 +307,13 @@ final class TVConnection: ObservableObject {
             for event in result.events {
                 switch event {
                 case .started(let on):
-                    ready = true; busy = false; status = on ? "Ansluten" : "Ansluten · TV i standby"
+                    ready = true; busy = false; needsRepair = false
+                    status = on ? "Ansluten" : "Ansluten · TV i standby"
+                    if let id = store.tv(host: host)?.id {
+                        store.touch(id: id)
+                        store.setActive(id)
+                        refreshSaved()
+                    }
                     UserDefaults.standard.set(host, forKey: "tv.host")
                     UserDefaults.standard.set(tvName, forKey: "tv.name")
                 case .voiceSession(let id):

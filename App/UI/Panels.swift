@@ -10,28 +10,15 @@ struct ChooseTVPanel: View {
 
     @StateObject private var discovery = TVDiscovery()
     @Environment(\.colorScheme) private var scheme
-    @State private var selected = ""
+    @State private var selectedNewHost = ""
     @State private var code = ""
+    @State private var forgetTarget: SavedTV?
 
-    private struct Candidate: Identifiable {
-        let id: String
-        let name: String
-        let host: String
-    }
-
-    // Den sparade TV:n först, därefter det som hittas på nätverket.
-    private var candidates: [Candidate] {
-        var seen = Set<String>()
-        var list: [Candidate] = []
-        if !connection.host.isEmpty {
-            seen.insert(connection.host)
-            list.append(Candidate(id: connection.host, name: connection.tvName, host: connection.host))
-        }
-        for device in discovery.devices where !seen.contains(device.host) {
-            seen.insert(device.host)
-            list.append(Candidate(id: device.host, name: device.name, host: device.host))
-        }
-        return list
+    // Bara det som TVDiscovery hittar via _androidtvremote2, minus det som
+    // redan är sparat.
+    private var discovered: [DiscoveredTV] {
+        let known = Set(connection.savedTVs.map { $0.host.lowercased() })
+        return discovery.devices.filter { !known.contains($0.host.lowercased()) }
     }
 
     var body: some View {
@@ -41,7 +28,7 @@ struct ChooseTVPanel: View {
                 PanelNotice(connection: connection)
                     .padding(.top, 8)
 
-                if candidates.isEmpty {
+                if connection.savedTVs.isEmpty && discovered.isEmpty {
                     Text("Inga TV-apparater hittades på nätverket")
                         .font(TR.Font.row)
                         .foregroundStyle(colors.muted)
@@ -54,40 +41,98 @@ struct ChooseTVPanel: View {
                     }
                     .padding(.horizontal, 14)
                 } else {
-                    VStack(spacing: 0) {
-                        ForEach(Array(candidates.enumerated()), id: \.element.id) { index, item in
-                            if index > 0 && selected != item.host && selected != candidates[index - 1].host {
-                                TRDivider()
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(Array(connection.savedTVs.enumerated()), id: \.element.id) { index, tv in
+                                if index > 0 { TRDivider() }
+                                SwipeToForget(onForget: { forgetTarget = tv }) {
+                                    row(
+                                        name: tv.name,
+                                        detail: tv.host,
+                                        selected: connection.activeTVID == tv.id,
+                                        saved: true
+                                    ) {
+                                        selectedNewHost = ""
+                                        connection.select(tv)
+                                    }
+                                }
                             }
-                            row(item)
+                            if !discovered.isEmpty {
+                                Text("NYA PÅ NÄTVERKET")
+                                    .font(.custom("Archivo-SemiBold", size: 12))
+                                    .tracking(0.3)
+                                    .foregroundStyle(colors.muted)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 14)
+                                    .padding(.top, 14)
+                                    .padding(.bottom, 4)
+                                ForEach(Array(discovered.enumerated()), id: \.element.id) { index, device in
+                                    if index > 0 { TRDivider() }
+                                    row(
+                                        name: device.name,
+                                        detail: device.host,
+                                        selected: selectedNewHost == device.host,
+                                        saved: false
+                                    ) {
+                                        selectedNewHost = device.host
+                                    }
+                                }
+                            }
                         }
                     }
+                    .frame(maxHeight: 300)
                     .padding(.top, 6)
 
                     if connection.needsCode {
                         codeField.padding(.top, 10)
                     }
 
+                    if connection.needsRepair {
+                        Text("TV:n visade ett annat certifikat än den sparade. Parkoppla igen om det är din TV.")
+                            .font(TR.Font.caption)
+                            .foregroundStyle(colors.power)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 14)
+                            .padding(.top, 10)
+                    }
+
                     TRPrimaryButton(title: primaryTitle) { primaryAction() }
-                        .disabled(connection.busy || selected.isEmpty)
+                        .disabled(primaryDisabled)
                         .padding(.horizontal, 14)
                         .padding(.top, 14)
                 }
             }
         }
-        .onAppear {
-            selected = connection.host
-            discovery.start()
-        }
+        .onAppear { discovery.start() }
         .onDisappear { discovery.stop() }
         .onChange(of: connection.ready) { ready in
             if ready { onClose() }
+        }
+        .confirmationDialog(
+            "Glöm \(forgetTarget?.name ?? "TV:n")?",
+            isPresented: Binding(get: { forgetTarget != nil }, set: { if !$0 { forgetTarget = nil } }),
+            titleVisibility: .visible,
+            presenting: forgetTarget
+        ) { tv in
+            Button("Glöm \(tv.name)", role: .destructive) { connection.forget(id: tv.id) }
+            Button("Avbryt", role: .cancel) { }
+        } message: { tv in
+            Text("\(tv.host). Tech Rabbit Remote kan inte styra den här TV:n förrän du parkopplar igen.")
         }
     }
 
     private var primaryTitle: String {
         if connection.needsCode { return "Bekräfta kod" }
-        return connection.busy ? "Ansluter…" : "Anslut"
+        if connection.busy { return "Ansluter…" }
+        if connection.needsRepair { return "Parkoppla igen" }
+        return selectedNewHost.isEmpty ? "Anslut" : "Parkoppla"
+    }
+
+    private var primaryDisabled: Bool {
+        if connection.needsCode { return code.count != 6 }
+        if connection.busy { return true }
+        if !selectedNewHost.isEmpty { return false }
+        return connection.activeTVID == nil && !connection.needsRepair
     }
 
     private func primaryAction() {
@@ -95,33 +140,48 @@ struct ChooseTVPanel: View {
             connection.submit(code: code)
             return
         }
-        guard let item = candidates.first(where: { $0.host == selected }) else { return }
-        let known = !connection.host.isEmpty && connection.host == item.host
-        connection.disconnect()
-        connection.host = item.host
-        connection.tvName = item.name
-        connection.connect(pair: !known)
+        if let device = discovered.first(where: { $0.host == selectedNewHost }) {
+            // Ny TV: parkoppla och spara när koden stämmer.
+            connection.disconnect()
+            connection.host = device.host
+            connection.tvName = device.name
+            connection.connect(pair: true)
+            return
+        }
+        if connection.needsRepair {
+            connection.connect(pair: true)
+            return
+        }
+        if let active = connection.savedTVs.first(where: { $0.id == connection.activeTVID }) {
+            connection.select(active)
+        }
     }
 
-    private func row(_ item: Candidate) -> some View {
+    private func row(name: String, detail: String, selected: Bool, saved: Bool,
+                     action: @escaping () -> Void) -> some View {
         let colors = TR.Colors.of(scheme)
-        let isSelected = selected == item.host
         let shape = RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous)
-        return Button {
-            selected = item.host
-        } label: {
+        return Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: "tv")
                     .font(.system(size: 22))
                     .foregroundStyle(colors.text)
                     .frame(width: 26)
-                Text(item.name)
-                    .font(.custom(isSelected ? "Archivo-Bold" : "Archivo-Regular", size: 16))
-                    .trLabelScaling()
-                    .foregroundStyle(colors.text)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(name)
+                        .font(.custom(selected ? "Archivo-Bold" : "Archivo-Regular", size: 16))
+                        .trLabelScaling()
+                        .foregroundStyle(colors.text)
+                        .lineLimit(1)
+                    if !saved {
+                        Text(detail)
+                            .font(TR.Font.caption)
+                            .foregroundStyle(colors.muted)
+                            .lineLimit(1)
+                    }
+                }
                 Spacer(minLength: 8)
-                if isSelected {
+                if selected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(colors.greenText)
@@ -130,7 +190,7 @@ struct ChooseTVPanel: View {
             .padding(.horizontal, 14)
             .frame(height: TR.Size.sheetRow)
             .background {
-                if isSelected {
+                if selected {
                     shape.fill(Color(hex: 0x1ED63C, opacity: 0.14))
                         .overlay(shape.stroke(colors.green, lineWidth: 1.5))
                         .shadow(color: colors.green.opacity(0.35), radius: 8)
@@ -139,8 +199,8 @@ struct ChooseTVPanel: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(TRPressStyle())
-        .accessibilityLabel(item.name)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityLabel(saved ? name : "\(name), ny på nätverket")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var codeField: some View {
@@ -170,6 +230,55 @@ struct ChooseTVPanel: View {
                 .accessibilityLabel("Kod, sex tecken, \(code.count) av 6 ifyllda")
         }
         .padding(.horizontal, 14)
+    }
+}
+
+/// Svep åt vänster på en rad för att glömma TV:n.
+@MainActor
+struct SwipeToForget<Content: View>: View {
+    var onForget: () -> Void
+    @ViewBuilder var content: Content
+
+    @Environment(\.colorScheme) private var scheme
+    @State private var offset: CGFloat = 0
+
+    private let width: CGFloat = 88
+
+    var body: some View {
+        let colors = TR.Colors.of(scheme)
+        ZStack(alignment: .trailing) {
+            Button {
+                offset = 0
+                onForget()
+            } label: {
+                Text("Glöm")
+                    .font(TR.Font.status)
+                    .foregroundStyle(.white)
+                    .frame(width: width, height: TR.Size.sheetRow)
+                    .background(colors.power, in: RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous))
+            }
+            .buttonStyle(TRPressStyle())
+            .opacity(offset < -8 ? 1 : 0)
+            .accessibilityLabel("Glöm TV:n")
+
+            content
+                .offset(x: offset)
+                .gesture(
+                    DragGesture(minimumDistance: 18)
+                        .onChanged { value in
+                            guard value.translation.width < 0 else { return }
+                            offset = max(value.translation.width, -width)
+                        }
+                        .onEnded { value in
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                offset = value.translation.width < -44 ? -width : 0
+                            }
+                        }
+                )
+        }
+        .accessibilityActions {
+            Button("Glöm TV:n") { onForget() }
+        }
     }
 }
 
@@ -243,7 +352,12 @@ struct ConnectionPanel: View {
                             .frame(height: 44)
                     }
 
-                    Button("Glöm parkoppling") { confirmForget = true }
+                    if connection.needsRepair {
+                        TRPrimaryButton(title: "Parkoppla igen") { open(pair: true) }
+                            .disabled(address.isEmpty || connection.busy)
+                    }
+
+                    Button("Glöm \(connection.tvName)") { confirmForget = true }
                         .font(TR.Font.row)
                         .foregroundStyle(colors.power)
                         .frame(maxWidth: .infinity)
