@@ -19,7 +19,6 @@ struct AiMRemoteApp: App {
         WindowGroup {
             ZStack {
                 RemoteRoot(connection: connection, appearanceRaw: $appearanceRaw)
-                    .preferredColorScheme(AppearanceMode(rawValue: appearanceRaw)?.colorScheme)
                 if !onboarded {
                     // R01 visas bara vid första start och är alltid mörk.
                     StartView {

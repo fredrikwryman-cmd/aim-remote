@@ -85,7 +85,8 @@ struct RemoteScreen: View {
                 icon: scheme == .dark ? "sun.max" : "moon",
                 variant: .flat,
                 label: scheme == .dark ? "Byt till ljust utseende" : "Byt till mörkt utseende",
-                action: toggleTheme
+                action: toggleTheme,
+                longPress: useSystemTheme
             )
             TRIconButton(icon: "tv", variant: .ghost, label: "Välj TV") {
                 openPanel(.chooseTV)
@@ -266,6 +267,15 @@ struct RemoteScreen: View {
 
     private func toggleTheme() {
         appearanceRaw = (scheme == .dark ? AppearanceMode.light : AppearanceMode.dark).rawValue
+    }
+
+    private func useSystemTheme() {
+        appearanceRaw = AppearanceMode.system.rawValue
+        withAnimation(.easeOut(duration: 0.2)) { toast = "Utseende: Automatiskt" }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            withAnimation(.easeOut(duration: 0.2)) { toast = nil }
+        }
     }
 
 }

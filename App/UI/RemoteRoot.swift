@@ -56,6 +56,9 @@ struct RemoteRoot: View {
                     )
             }
         }
+        // Utseendet sätts här, i vyn som äger värdet. Låg det i App-kroppen
+        // räknades skrivningen aldrig om till ett nytt colorScheme.
+        .preferredColorScheme(AppearanceMode(rawValue: appearanceRaw)?.colorScheme)
         // Temabyte: crossfade 250 ms, direkt vid Reducera rorelse.
         .animation(reduceMotion ? nil : .easeInOut(duration: TR.Motion.themeSwap), value: appearanceRaw)
         .onChange(of: connection.ready) { ready in
