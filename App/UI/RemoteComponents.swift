@@ -120,6 +120,7 @@ struct TRPressStyle: ButtonStyle {
 
 // OK-tangenten: 82 x 74, kant 2 i #1ED63C, gradient okTop → okBottom, glöd.
 struct TROkKey: View {
+    var height: CGFloat = TR.Size.okKeyHeight
     var action: () -> Void
     @Environment(\.colorScheme) private var scheme
     @Environment(\.isEnabled) private var isEnabled
@@ -136,7 +137,7 @@ struct TROkKey: View {
             Text("OK")
                 .font(TR.Font.ok)
                 .foregroundStyle(colors.text)
-                .frame(width: TR.Size.okKeyWidth, height: TR.Size.okKeyHeight)
+                .frame(width: TR.Size.okKeyWidth, height: height)
                 .background(
                     LinearGradient(colors: [colors.okTop, colors.okBottom], startPoint: .top, endPoint: .bottom),
                     in: shape
@@ -167,6 +168,7 @@ struct TRRocker: View {
     var title: String
     var upLabel: String
     var downLabel: String
+    var height: CGFloat = TR.Size.rockerHeight
     var up: () -> Void
     var down: () -> Void
 
@@ -185,7 +187,7 @@ struct TRRocker: View {
                 .accessibilityHidden(true)
             zone(icon: "chevron.down", label: downLabel, action: down)
         }
-        .frame(width: TR.Size.rockerWidth, height: TR.Size.rockerHeight)
+        .frame(width: TR.Size.rockerWidth, height: height)
         .background(
             LinearGradient(colors: [colors.keyTop, colors.keyBottom], startPoint: .top, endPoint: .bottom),
             in: shape

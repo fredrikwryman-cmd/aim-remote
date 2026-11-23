@@ -23,8 +23,6 @@ struct RemoteRoot: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            RemoteBackground(variant: .remote)
-
             Group {
                 if tab == .remote {
                     RemoteScreen(connection: connection, appearanceRaw: $appearanceRaw) { open($0) }
@@ -42,6 +40,11 @@ struct RemoteRoot: View {
             FloatingTabBar(selection: $tab)
                 .padding(.bottom, max(TR.Size.tabBarBottom - 34, 12))
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Bakgrunden ligger bakom innehållet i stället för bredvid det i
+        // stacken. En syskonvy med ignoresSafeArea drar ut hela stacken, och
+        // då hamnade rubriken under statusfältet.
+        .background(RemoteBackground(variant: .remote))
         .tint(TR.Colors.of(scheme).greenText)
         .overlay {
             if let panel {

@@ -11,23 +11,57 @@ struct RemoteScreen: View {
     @Environment(\.colorScheme) private var scheme
     @State private var toast: String?
 
-    // Panelens höjd med fasta mått: padding + vippa + gap + 3 d-pad-rader + gap + mediarad + padding.
-    private var panelHeight: CGFloat {
+    /// Panelens mått vid den bredd och höjd som faktiskt finns. Proportionerna
+    /// är SPEC:ens; bara skalan ändras, så att tangenter och mellanrum växer
+    /// med skärmen i stället för att lämna ett tomt fält under panelen.
+    private struct PanelMetrics {
+        var width: CGFloat
+        var gap: CGFloat
+        var keyGap: CGFloat
+        var rocker: CGFloat
+        var smallKey: CGFloat
+        var dpadRow: CGFloat
+        var okKey: CGFloat
+        var media: CGFloat
+        var height: CGFloat
+    }
+
+    private static let basePanelHeight: CGFloat =
         TR.Size.panelPadding * 2 + TR.Size.rockerHeight + TR.Size.panelGap
             + TR.Size.dpadRow * 3 + TR.Size.panelGap + TR.Size.mediaKey
+
+    private func metrics(width: CGFloat, height: CGFloat) -> PanelMetrics {
+        // Aldrig under 0,82: då blir mediatangenten mindre än träffytan.
+        let scale = min(1.45, max(0.82, height / Self.basePanelHeight))
+        let gap = TR.Size.panelGap * scale
+        let rocker = TR.Size.rockerHeight * scale
+        let dpadRow = TR.Size.dpadRow * scale
+        let media = max(TR.Size.mediaKey * scale, TR.Size.hitTargetMin)
+        return PanelMetrics(
+            width: width,
+            gap: gap,
+            keyGap: 10 * scale,
+            rocker: rocker,
+            smallKey: TR.Size.smallKey * scale,
+            dpadRow: dpadRow,
+            okKey: TR.Size.okKeyHeight * scale,
+            media: media,
+            height: TR.Size.panelPadding * 2 + rocker + gap + dpadRow * 3 + gap + media
+        )
     }
 
     var body: some View {
         GeometryReader { geometry in
-            let needed = TR.Size.headerRow + 14 + TR.Size.pillHeight + 16 + panelHeight
-            let available = geometry.size.height - TR.Size.tabBar - TR.Size.tabBarBottom - 8
-            let scale = max(0.86, min(1, available / max(needed, 1)))
+            // Flikraden är redan avdragen av RemoteRoot, så hela höjden här
+            // tillhör fjärren.
+            let above = TR.Size.headerRow + 14 + TR.Size.pillHeight + 16
+            let m = metrics(width: geometry.size.width - TR.Size.sidePadding * 2,
+                            height: max(geometry.size.height - above, 1))
             VStack(alignment: .leading, spacing: 0) {
                 header
                 statusRow.padding(.top, 14)
-                panel
+                panel(m)
                     .padding(.top, 16)
-                    .scaleEffect(scale, anchor: .top)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, TR.Size.sidePadding)
@@ -127,43 +161,45 @@ struct RemoteScreen: View {
 
     // MARK: - 3. Fjärrpanel
 
-    private var panel: some View {
+    private func panel(_ m: PanelMetrics) -> some View {
         let colors = TR.Colors.of(scheme)
-        let inner = 390 - TR.Size.sidePadding * 2 - TR.Size.panelPadding * 2   // 330
-        let middle = inner - TR.Size.rockerWidth * 2 - 20                       // 170
-        let smallKeyWidth = (middle - 10) / 2                                   // 80
+        let inner = m.width - TR.Size.panelPadding * 2
+        let middle = inner - TR.Size.rockerWidth * 2 - 20
+        let smallKeyWidth = (middle - 10) / 2
         let mediaWidth = (inner - 24) / 4
 
-        return VStack(spacing: TR.Size.panelGap) {
+        return VStack(spacing: m.gap) {
             // Övre rad: vippa | 2x2-rutnät | vippa
             HStack(spacing: 10) {
                 TRRocker(title: "Kanal", upLabel: "Nästa kanal", downLabel: "Föregående kanal",
+                         height: m.rocker,
                          up: { connection.press(.channelUp) }, down: { connection.press(.channelDown) })
                     .disabled(!connection.ready)
-                VStack(spacing: 10) {
+                VStack(spacing: m.keyGap) {
                     HStack(spacing: 10) {
-                        smallKey("list.bullet.rectangle", "Öppna menyn", width: smallKeyWidth) { connection.press(.guide) }
+                        smallKey("list.bullet.rectangle", "Öppna menyn", width: smallKeyWidth, height: m.smallKey) { connection.press(.guide) }
                             .disabled(!connection.ready)
-                        smallKey("speaker.slash", "Stäng av ljudet", width: smallKeyWidth) { connection.press(.mute) }
+                        smallKey("speaker.slash", "Stäng av ljudet", width: smallKeyWidth, height: m.smallKey) { connection.press(.mute) }
                             .disabled(!connection.ready)
                     }
                     HStack(spacing: 10) {
-                        smallKey("gearshape", "TV:ns inställningar", width: smallKeyWidth) { connection.press(.settings) }
+                        smallKey("gearshape", "TV:ns inställningar", width: smallKeyWidth, height: m.smallKey) { connection.press(.settings) }
                             .disabled(!connection.ready)
                         // Tangentbordet öppnar en panel i appen och behöver ingen TV.
-                        smallKey("keyboard", "Öppna tangentbord", width: smallKeyWidth) { openPanel(.keyboard) }
+                        smallKey("keyboard", "Öppna tangentbord", width: smallKeyWidth, height: m.smallKey) { openPanel(.keyboard) }
                     }
                 }
                 .frame(width: middle)
                 TRRocker(title: "Volym", upLabel: "Höj volymen", downLabel: "Sänk volymen",
+                         height: m.rocker,
                          up: { connection.press(.volumeUp) }, down: { connection.press(.volumeDown) })
                     .disabled(!connection.ready)
             }
 
             // D-pad: 3 x 82 kolumner, 3 x 72 rader, gap 10.
             VStack(spacing: 0) {
-                dpadRow {
-                    TRGhostButton(width: TR.Size.dpadColumn, height: TR.Size.dpadRow) {
+                dpadRow(height: m.dpadRow) {
+                    TRGhostButton(width: TR.Size.dpadColumn, height: m.dpadRow) {
                         openPanel(.numbers)
                     } label: {
                         Text("123").font(TR.Font.number)
@@ -171,10 +207,10 @@ struct RemoteScreen: View {
                     // Sifferpanelen öppnas i appen och behöver ingen TV.
                     .accessibilityLabel("Sifferknappar")
 
-                    dpadKey("chevron.up", "Upp") { connection.press(.up) }
+                    dpadKey("chevron.up", "Upp", height: m.dpadRow) { connection.press(.up) }
                         .disabled(!connection.ready)
 
-                    TRGhostButton(width: TR.Size.dpadColumn, height: TR.Size.dpadRow) {
+                    TRGhostButton(width: TR.Size.dpadColumn, height: m.dpadRow) {
                         Task { await connection.toggleVoice() }
                     } label: {
                         Image(systemName: connection.recording ? "stop.fill" : "mic")
@@ -184,17 +220,17 @@ struct RemoteScreen: View {
                     .accessibilityLabel(connection.recording ? "Stoppa röststyrning" : "Röststyrning")
                     .disabled(!connection.ready)
                 }
-                dpadRow {
-                    dpadKey("chevron.left", "Vänster") { connection.press(.left) }
+                dpadRow(height: m.dpadRow) {
+                    dpadKey("chevron.left", "Vänster", height: m.dpadRow) { connection.press(.left) }
                         .disabled(!connection.ready)
-                    TROkKey { connection.press(.ok) }
-                        .frame(width: TR.Size.dpadColumn, height: TR.Size.dpadRow)
+                    TROkKey(height: m.okKey) { connection.press(.ok) }
+                        .frame(width: TR.Size.dpadColumn, height: m.dpadRow)
                         .disabled(!connection.ready)
-                    dpadKey("chevron.right", "Höger") { connection.press(.right) }
+                    dpadKey("chevron.right", "Höger", height: m.dpadRow) { connection.press(.right) }
                         .disabled(!connection.ready)
                 }
-                dpadRow {
-                    TRGhostButton(width: TR.Size.dpadColumn, height: TR.Size.dpadRow) {
+                dpadRow(height: m.dpadRow) {
+                    TRGhostButton(width: TR.Size.dpadColumn, height: m.dpadRow) {
                         connection.press(.back)
                     } label: {
                         Image(systemName: "arrow.left").font(.system(size: 24))
@@ -202,10 +238,10 @@ struct RemoteScreen: View {
                     .accessibilityLabel("Gå tillbaka")
                     .disabled(!connection.ready)
 
-                    dpadKey("chevron.down", "Ned") { connection.press(.down) }
+                    dpadKey("chevron.down", "Ned", height: m.dpadRow) { connection.press(.down) }
                         .disabled(!connection.ready)
 
-                    TRGhostButton(width: TR.Size.dpadColumn, height: TR.Size.dpadRow) {
+                    TRGhostButton(width: TR.Size.dpadColumn, height: m.dpadRow) {
                         connection.press(.home)
                     } label: {
                         Image(systemName: "house").font(.system(size: 24))
@@ -217,15 +253,15 @@ struct RemoteScreen: View {
 
             // Mediarad: fyra lika breda tangenter, höjd 44, gap 8.
             HStack(spacing: 8) {
-                mediaKey("backward", "Spola bakåt", width: mediaWidth) { connection.press(.rewind) }
-                mediaKey("play", "Spela", width: mediaWidth) { connection.press(.play) }
-                mediaKey("pause", "Paus", width: mediaWidth) { connection.press(.pause) }
-                mediaKey("forward", "Spola framåt", width: mediaWidth) { connection.press(.fastForward) }
+                mediaKey("backward", "Spola bakåt", width: mediaWidth, height: m.media) { connection.press(.rewind) }
+                mediaKey("play", "Spela", width: mediaWidth, height: m.media) { connection.press(.play) }
+                mediaKey("pause", "Paus", width: mediaWidth, height: m.media) { connection.press(.pause) }
+                mediaKey("forward", "Spola framåt", width: mediaWidth, height: m.media) { connection.press(.fastForward) }
             }
             .disabled(!connection.ready)
         }
         .padding(TR.Size.panelPadding)
-        .frame(width: 390 - TR.Size.sidePadding * 2, height: panelHeight)
+        .frame(width: m.width, height: m.height)
         .background(
             RoundedRectangle(cornerRadius: TR.Radius.panel, style: .continuous).fill(colors.panel)
         )
@@ -234,31 +270,35 @@ struct RemoteScreen: View {
         )
     }
 
-    private func dpadRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    private func dpadRow<Content: View>(height: CGFloat,
+                                        @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 10) {
             content()
         }
-        .frame(height: TR.Size.dpadRow)
+        .frame(height: height)
     }
 
-    private func dpadKey(_ icon: String, _ label: String, action: @escaping () -> Void) -> some View {
-        TRKey(width: TR.Size.dpadKeyWidth, height: TR.Size.dpadKeyHeight,
+    private func dpadKey(_ icon: String, _ label: String, height: CGFloat,
+                         action: @escaping () -> Void) -> some View {
+        TRKey(width: TR.Size.dpadKeyWidth, height: max(height - 2, TR.Size.hitTargetMin),
               radius: TR.Radius.dpadKey, action: action) {
             Image(systemName: icon).font(.system(size: 22))
         }
-        .frame(width: TR.Size.dpadColumn, height: TR.Size.dpadRow)
+        .frame(width: TR.Size.dpadColumn, height: height)
         .accessibilityLabel(label)
     }
 
-    private func smallKey(_ icon: String, _ label: String, width: CGFloat, action: @escaping () -> Void) -> some View {
-        TRKey(width: width, height: TR.Size.smallKey, radius: TR.Radius.smallKey, action: action) {
+    private func smallKey(_ icon: String, _ label: String, width: CGFloat, height: CGFloat,
+                          action: @escaping () -> Void) -> some View {
+        TRKey(width: width, height: height, radius: TR.Radius.smallKey, action: action) {
             Image(systemName: icon).font(.system(size: 20))
         }
         .accessibilityLabel(label)
     }
 
-    private func mediaKey(_ icon: String, _ label: String, width: CGFloat, action: @escaping () -> Void) -> some View {
-        TRKey(width: width, height: TR.Size.mediaKey, radius: TR.Radius.mediaKey, action: action) {
+    private func mediaKey(_ icon: String, _ label: String, width: CGFloat, height: CGFloat,
+                          action: @escaping () -> Void) -> some View {
+        TRKey(width: width, height: height, radius: TR.Radius.mediaKey, action: action) {
             Image(systemName: icon).font(.system(size: 18))
         }
         .accessibilityLabel(label)

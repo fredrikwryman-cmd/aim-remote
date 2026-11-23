@@ -44,7 +44,9 @@ struct GlassSheet<Content: View>: View {
             )
             .shadow(color: .black.opacity(0.5), radius: 30, y: 15)
             .padding(.horizontal, 14)
-            .padding(.top, top)
+            // top är mätt från skärmens överkant i SPEC. Bladet ligger nu
+            // innanför säkra ytan, så statusfältet räknas bort en gång.
+            .padding(.top, max(top - 44, 12))
             .offset(y: max(0, drag))
             .gesture(
                 DragGesture()
