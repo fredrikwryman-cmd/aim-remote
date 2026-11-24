@@ -363,36 +363,41 @@ enum TRHaptics {
 
 // MARK: - Bakgrund
 
-/// Jämn bakgrundsfärg med ett grönt sken i nederkanten, som i facit.
-/// Ingen swoosh.
+/// Bakgrunden, uppmätt i facit. Ljust läge har en jämn yta med ett grönt
+/// sken i nedre högra hörnet och ett svagare i det vänstra. Mörkt läge har
+/// inget sken alls, bara en lodrät toning som mörknar nedåt (sid 2 och 4).
 struct RemoteBackground: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        let colors = TR.Colors.of(scheme)
         GeometryReader { geometry in
             let h = geometry.size.height
-            ZStack {
-                colors.background
-                // Skenet ligger i nederkanten och klingar av snabbt, som i
-                // facit: tydligt i nedre hornen, borta vid panelen.
-                glow(colors, at: UnitPoint(x: 0.88, y: 1.06), radius: h * 0.52, strength: 1)
-                glow(colors, at: UnitPoint(x: 0.10, y: 1.08), radius: h * 0.30, strength: 0.7)
+            if scheme == .dark {
+                LinearGradient(
+                    colors: [Color(hex: 0x0C171D), Color(hex: 0x050A0E)],
+                    startPoint: .top, endPoint: .bottom
+                )
+            } else {
+                ZStack {
+                    TR.Colors.light.background
+                    glow(center: UnitPoint(x: 1.0, y: 1.04), radius: h * 0.535,
+                         stops: [(0, 0.26), (0.12, 0.23), (0.30, 0.105), (0.55, 0.06), (1, 0)])
+                    glow(center: UnitPoint(x: 0.08, y: 1.05), radius: h * 0.28,
+                         stops: [(0, 0.07), (0.35, 0.04), (1, 0)])
+                }
             }
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
     }
 
-    private func glow(_ colors: TR.Colors, at center: UnitPoint,
-                      radius: CGFloat, strength: Double) -> some View {
-        RadialGradient(
-            gradient: Gradient(stops: [
-                .init(color: colors.glow.opacity(strength), location: 0),
-                .init(color: colors.glow.opacity(strength * 0.45), location: 0.30),
-                .init(color: colors.glow.opacity(strength * 0.10), location: 0.60),
-                .init(color: colors.glow.opacity(0), location: 1)
-            ]),
+    private func glow(center: UnitPoint, radius: CGFloat,
+                      stops: [(CGFloat, Double)]) -> some View {
+        let accent = TR.Colors.light.accent
+        return RadialGradient(
+            gradient: Gradient(stops: stops.map {
+                .init(color: accent.opacity($0.1), location: $0.0)
+            }),
             center: center, startRadius: 0, endRadius: radius
         )
     }
