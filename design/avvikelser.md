@@ -15,29 +15,26 @@ sid 4 är samma layout i mörkt läge. Sid 5 är designsystemet.
    hemindikatorn. Panelen behåller facit-proportionerna och skalas i höjd för
    att fylla ytan däremellan. Detta är den avvikelse direktivet tillåter.
 
-2. **Tangenterna är nedtonade när ingen TV är ansluten.** Facit ritar varje
-   tangent i full styrka trots statusraden "Inte ansluten". Appen håller kvar
-   `.disabled(!connection.ready)`, som både gör tangenten overksam och tonar
-   ned den enligt knappstaten Disabled på sid 5. Att ta bort den hade ändrat
-   anslutningsfunktionen, vilket direktivet förbjuder. Skärmbilderna tas i en
-   simulator utan TV, så de visar alltid det nedtonade läget; på en telefon
-   med sparad TV är tangenterna i full styrka.
+2. **Sid 1 och sid 2 har inte samma mått.** Panelen är 15 pt från kanten och
+   519,5 pt hög i sid 1, men 11 pt från kanten och 555,5 pt hög i sid 2.
+   Vippan är ett hölje med två tangenter i sid 1 och en enda kapsel i sid 2.
+   Toppkortets yta och flikradens hölje ritas bara i de ljusa sidorna. Appen
+   följer respektive sida, så fjärren byter marginal, panelhöjd och vippa när
+   telefonen byter läge. Inställningar har samma mått i sid 3 och sid 4.
 
-3. **Toppkortet och flikraden ritas olika i ljust och mörkt läge.** Facit sid
-   1 har ett kort bakom av/på-knappen och ett vitt hölje med grön ruta kring
-   vald flik. Sid 2 har varken kort eller hölje: huvudet och flikarna ligger
-   direkt på bakgrunden och vald flik markeras bara med accentfärgen. Appen
-   följer respektive sida.
+3. **Skenet i nedre vänstra hörnet** är något grönare i appen än i facit, som
+   mest 12 av 255 vid (50, 830). Övriga uppmätta bakgrundspunkter ligger inom
+   2–10. Mörkt läge har inget sken alls, bara en lodrät toning.
 
-4. **Sid 1 och sid 2 har inte exakt samma mått.** Panelen är 15 pt från
-   kanten och 519,5 pt hög i sid 1, men 11 pt från kanten och 555,5 pt hög i
-   sid 2. Appen följer sid 1, som är den enda sidan med symmetrisk innerram
-   (16 pt upptill, 21,5 pt nedtill).
+4. **Tangenterna** ritas i full styrka även utan ansluten TV, som i facit.
+   Spärren sitter kvar, så utan anslutning skickas inget.
 
 5. **TV-ikonen ritas som egen glyf.** SF-symbolen `tv` ritas av iOS med fylld
    skärm; facit har en kontur med fot. Glyfen ritas därför i `TRDisplayIcon`.
 
-## Uppmätta mått (390 x 844, facit sid 1 och sid 3)
+## Uppmätta mått, ljust läge (390 x 844, facit sid 1 och sid 3)
+
+Mörkt läge mäts i sid 2 och sid 4; värdena står i `TR.Layout.dark`.
 
 | Del | Mått |
 | --- | --- |
