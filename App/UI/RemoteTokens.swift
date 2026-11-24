@@ -95,49 +95,160 @@ enum TR {
 
     // MARK: - Mått, uppmätta i facit (390 x 844)
 
-    enum Size {
-        static let sidePadding: CGFloat = 15
-        static let hitTargetMin: CGFloat = 44
+    /// Facit ritar fjärren olika i ljust och mörkt läge. Sid 1 har toppkort,
+    /// delad vippa och en panel som fyller innerbredden. Sid 2 har inget
+    /// toppkort, en vippa i ett stycke och smalare rader. Värdena nedan är
+    /// uppmätta i respektive sida; Inställningar (sid 3 och sid 4) är lika.
+    struct Layout {
+        // Skärmen
+        var sidePadding: CGFloat
+        var topPadding: CGFloat
 
         // Toppkortet
-        static let headerCard: CGFloat = 70
-        static let headerPadding: CGFloat = 15
-        static let powerButton: CGFloat = 50
-        static let iconButton: CGFloat = 44
+        var headerFilled: Bool
+        var headerHeight: CGFloat
+        var headerPadding: CGFloat
+        var powerButton: CGFloat
+        var powerIcon: CGFloat
+        var headerTextGap: CGFloat
+        var displayIcon: CGFloat
 
         // Statusraden
-        static let statusRow: CGFloat = 33
-        static let statusInset: CGFloat = 12
+        var gapHeaderStatus: CGFloat
+        var statusRow: CGFloat
+        var statusInset: CGFloat
+        var gapStatusPanel: CGFloat
+
+        // Panelen
+        var panelPaddingH: CGFloat
+        var panelPaddingTop: CGFloat
+        var panelPaddingBottom: CGFloat
+        var gapRockerDpad: CGFloat
+        var gapDpadMedia: CGFloat
+
+        // Rad 1
+        var rockerSplit: Bool          // sid 1: hölje med två tangenter
+        var rockerWidth: CGFloat
+        var rockerHeight: CGFloat
+        var rockerKey: CGFloat         // bara när rockerSplit
+        var rockerInset: CGFloat
+        var columnGap: CGFloat
+        var smallKey: CGFloat
+        var smallKeyGap: CGFloat
+
+        // Rad 2, d-paden
+        var dpadKey: CGFloat
+        var dpadColumnGap: CGFloat
+        var dpadRow: CGFloat
+        var dpadRowGap: CGFloat
+
+        // Rad 3, media
+        var mediaWidth: CGFloat
+        var mediaHeight: CGFloat
+        var mediaGap: CGFloat
+
+        /// Innerbredden i facit, som de fasta bredderna är mätta mot.
+        var referenceInner: CGFloat
+
+        /// Panelens höjd i facit.
+        var panelHeight: CGFloat {
+            panelPaddingTop + rockerHeight + gapRockerDpad
+                + dpadRow * 3 + dpadRowGap * 2
+                + gapDpadMedia + mediaHeight + panelPaddingBottom
+        }
+
+        // Facit sid 1: panel 15..375,5 och 185..704,5.
+        static let light = Layout(
+            sidePadding: 15,
+            topPadding: 15,
+            headerFilled: true,
+            headerHeight: 70,
+            headerPadding: 15,
+            powerButton: 50,
+            powerIcon: 24,
+            headerTextGap: 19,
+            displayIcon: 27,
+            gapHeaderStatus: 7,
+            statusRow: 33,
+            statusInset: 12,
+            gapStatusPanel: 13,
+            panelPaddingH: 11,
+            panelPaddingTop: 16,
+            panelPaddingBottom: 21.5,
+            gapRockerDpad: 16,
+            gapDpadMedia: 16,
+            rockerSplit: true,
+            rockerWidth: 76,
+            rockerHeight: 127,
+            rockerKey: 48,
+            rockerInset: 4,
+            columnGap: 13.5,
+            smallKey: 45,
+            smallKeyGap: 28,
+            dpadKey: 84.5,
+            dpadColumnGap: 42,
+            dpadRow: 84.5,
+            dpadRowGap: 10.5,
+            mediaWidth: 74.5,
+            mediaHeight: 49,
+            mediaGap: 13.5,
+            referenceInner: 338.5
+        )
+
+        // Facit sid 2: panel 11..379,5 och 169..724,5, inget toppkort.
+        static let dark = Layout(
+            sidePadding: 11,
+            topPadding: 10,
+            headerFilled: false,
+            headerHeight: 54,
+            headerPadding: 11.5,
+            powerButton: 54,
+            powerIcon: 26,
+            headerTextGap: 13.5,
+            displayIcon: 31,
+            gapHeaderStatus: 14,
+            statusRow: 33,
+            statusInset: 12,
+            gapStatusPanel: 11,
+            panelPaddingH: 17.5,
+            panelPaddingTop: 22.5,
+            panelPaddingBottom: 33,
+            gapRockerDpad: 23.5,
+            gapDpadMedia: 22,
+            rockerSplit: false,
+            rockerWidth: 74,
+            rockerHeight: 129,
+            rockerKey: 0,
+            rockerInset: 0,
+            columnGap: 15,
+            smallKey: 45.5,
+            smallKeyGap: 30,
+            dpadKey: 88,
+            dpadColumnGap: 30.5,
+            dpadRow: 83,
+            dpadRowGap: 15,
+            mediaWidth: 71,
+            mediaHeight: 46,
+            mediaGap: 13.5,
+            referenceInner: 333.5
+        )
+
+        static func of(_ scheme: ColorScheme) -> Layout { scheme == .dark ? .dark : .light }
+    }
+
+    /// Mått som är lika i båda lägena.
+    enum Size {
+        static let hitTargetMin: CGFloat = 44
+        static let iconButton: CGFloat = 44
         static let statusDot: CGFloat = 7
-
-        // Fjärrpanelen
-        static let panelPaddingH: CGFloat = 11
-        static let panelPaddingTop: CGFloat = 16
-        static let panelPaddingBottom: CGFloat = 21.5
-        static let panelGap: CGFloat = 16
-        static let columnGap: CGFloat = 13.5
-        static let rockerWidth: CGFloat = 76
-        static let rockerHeight: CGFloat = 127
-        static let rockerInset: CGFloat = 4
-        static let rockerKey: CGFloat = 48
-        static let smallKey: CGFloat = 45
-        static let smallKeyGap: CGFloat = 28
-        static let dpadKey: CGFloat = 84.5
-        static let dpadColumnGap: CGFloat = 42
-        static let dpadRowGap: CGFloat = 10.5
-        static let mediaKey: CGFloat = 49
-
-        /// Panelens höjd i facit: 16 + 127 + 16 + 274,5 + 16 + 49 + 21,5.
-        static let panelHeight: CGFloat =
-            panelPaddingTop + rockerHeight + panelGap
-                + dpadKey * 3 + dpadRowGap * 2 + panelGap + mediaKey + panelPaddingBottom
 
         // Flikraden
         static let tabBar: CGFloat = 72
         static let tabBarPadding: CGFloat = 8
         static let tabItemGap: CGFloat = 7
 
-        // Inställningar
+        // Inställningar: sid 3 och sid 4 har samma mått.
+        static let sidePadding: CGFloat = 15
         static let heroCard: CGFloat = 99
         static let heroIcon: CGFloat = 60
         static let heroPadding: CGFloat = 19

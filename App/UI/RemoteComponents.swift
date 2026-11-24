@@ -9,6 +9,9 @@ struct TRKey<Label: View>: View {
     var height: CGFloat
     var radius: CGFloat
     var repeats: Bool = false
+    /// Facit ritar fjärrens tangenter i full styrka även utan ansluten TV.
+    /// Spärren sitter kvar, nedtoningen gör den inte.
+    var dims: Bool = true
     var action: () -> Void
     @ViewBuilder var label: Label
 
@@ -32,11 +35,16 @@ struct TRKey<Label: View>: View {
             .overlay(shape.stroke(colors.line, lineWidth: 1))
             .shadow(color: colors.keyShadow.opacity(colors.keyShadowOpacity), radius: 6, y: 4)
             .scaleEffect(pressed && !reduceMotion ? TR.State.pressedScale : 1)
-            .opacity(isEnabled ? (pressed ? TR.State.pressedOpacity : 1) : TR.State.disabledOpacity)
+            .opacity(opacity)
             .animation(.easeOut(duration: TR.Motion.press), value: pressed)
             .contentShape(shape)
             .gesture(press)
             .accessibilityAddTraits(.isButton)
+    }
+
+    private var opacity: Double {
+        if pressed { return TR.State.pressedOpacity }
+        return isEnabled || !dims ? 1 : TR.State.disabledOpacity
     }
 
     private var press: some Gesture {
@@ -79,6 +87,7 @@ struct TRKey<Label: View>: View {
 struct TRGhostButton<Label: View>: View {
     var width: CGFloat = TR.Size.hitTargetMin
     var height: CGFloat = TR.Size.hitTargetMin
+    var dims: Bool = true
     var action: () -> Void
     @ViewBuilder var label: Label
 
@@ -97,7 +106,7 @@ struct TRGhostButton<Label: View>: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(TRPressStyle())
-        .opacity(isEnabled ? 1 : TR.State.disabledOpacity)
+        .opacity(isEnabled || !dims ? 1 : TR.State.disabledOpacity)
     }
 }
 
@@ -111,15 +120,17 @@ struct TRPressStyle: ButtonStyle {
     }
 }
 
-// Vippa: ett kapselformat hölje med två egna tangenter och etiketten emellan.
+// Vippa. Facit sid 1 ritar ett kapselformat hölje med två egna tangenter;
+// sid 2 ritar en enda kapsel med två tryckzoner. Båda finns här.
 struct TRRocker: View {
     var title: String
     var upLabel: String
     var downLabel: String
-    var width: CGFloat = TR.Size.rockerWidth
-    var height: CGFloat = TR.Size.rockerHeight
-    var keyHeight: CGFloat = TR.Size.rockerKey
-    var inset: CGFloat = TR.Size.rockerInset
+    var width: CGFloat
+    var height: CGFloat
+    var split: Bool
+    var keyHeight: CGFloat
+    var inset: CGFloat
     var up: () -> Void
     var down: () -> Void
 
@@ -128,34 +139,120 @@ struct TRRocker: View {
 
     var body: some View {
         let colors = TR.Colors.of(scheme)
-        let shape = RoundedRectangle(cornerRadius: min(TR.Radius.rocker, width / 2),
-                                     style: .continuous)
-        VStack(spacing: 0) {
-            key(icon: "chevron.up", label: upLabel, action: up)
-            Spacer(minLength: 0)
-            Text(title)
-                .font(TR.Font.caption)
-                .trLabelScaling()
-                .foregroundStyle(colors.textSecondary)
-                .accessibilityHidden(true)
-            Spacer(minLength: 0)
-            key(icon: "chevron.down", label: downLabel, action: down)
+        let shape = RoundedRectangle(cornerRadius: width / 2, style: .continuous)
+        return Group {
+            if split {
+                VStack(spacing: 0) {
+                    innerKey(icon: "chevron.up", label: upLabel, action: up)
+                    Spacer(minLength: 0)
+                    label(colors)
+                    Spacer(minLength: 0)
+                    innerKey(icon: "chevron.down", label: downLabel, action: down)
+                }
+                .padding(inset)
+                .frame(width: width, height: height)
+                .background(colors.panel, in: shape)
+                .overlay(shape.stroke(colors.line, lineWidth: 1))
+            } else {
+                VStack(spacing: 0) {
+                    zone(icon: "chevron.up", label: upLabel, action: up)
+                    label(colors)
+                    zone(icon: "chevron.down", label: downLabel, action: down)
+                }
+                .frame(width: width, height: height)
+                .background(
+                    LinearGradient(colors: [colors.keyTop, colors.keyBottom],
+                                   startPoint: .top, endPoint: .bottom),
+                    in: shape
+                )
+                .overlay(shape.stroke(colors.line, lineWidth: 1))
+                .shadow(color: colors.keyShadow.opacity(colors.keyShadowOpacity), radius: 6, y: 4)
+            }
         }
-        .padding(inset)
-        .frame(width: width, height: height)
-        .background(colors.panel, in: shape)
-        .overlay(shape.stroke(colors.line, lineWidth: 1))
-        .opacity(isEnabled ? 1 : TR.State.disabledOpacity)
         .accessibilityElement(children: .contain)
     }
 
-    private func key(icon: String, label: String, action: @escaping () -> Void) -> some View {
+    private func label(_ colors: TR.Colors) -> some View {
+        Text(title)
+            .font(TR.Font.caption)
+            .trLabelScaling()
+            .foregroundStyle(colors.textSecondary)
+            .accessibilityHidden(true)
+    }
+
+    private func innerKey(icon: String, label: String,
+                          action: @escaping () -> Void) -> some View {
         TRKey(width: width - inset * 2, height: keyHeight,
               radius: min(TR.Radius.rockerKey, keyHeight / 2),
-              repeats: true, action: action) {
+              repeats: true, dims: false, action: action) {
             Image(systemName: icon).font(.system(size: 20, weight: .medium))
         }
         .accessibilityLabel(label)
+    }
+
+    private func zone(icon: String, label: String,
+                      action: @escaping () -> Void) -> some View {
+        TRRepeatZone(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 22, weight: .medium))
+                .foregroundStyle(TR.Colors.of(scheme).textPrimary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .accessibilityLabel(label)
+    }
+}
+
+/// Tryckzon i en vippa som ritas i ett stycke. Upprepar efter 350 ms.
+struct TRRepeatZone<Content: View>: View {
+    var action: () -> Void
+    @ViewBuilder var content: Content
+
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pressed = false
+    @State private var repeater: Timer?
+
+    var body: some View {
+        content
+            .contentShape(Rectangle())
+            .opacity(pressed ? TR.State.pressedOpacity : 1)
+            .scaleEffect(pressed && !reduceMotion ? TR.State.pressedScale : 1)
+            .animation(.easeOut(duration: TR.Motion.press), value: pressed)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard isEnabled, !pressed else { return }
+                        pressed = true
+                        TRHaptics.key()
+                        action()
+                        start()
+                    }
+                    .onEnded { _ in
+                        pressed = false
+                        stop()
+                    }
+            )
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private func start() {
+        repeater?.invalidate()
+        repeater = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { _ in
+            Task { @MainActor in
+                guard pressed else { return }
+                repeater = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: true) { _ in
+                    Task { @MainActor in
+                        guard pressed else { return }
+                        TRHaptics.repeated()
+                        action()
+                    }
+                }
+            }
+        }
+    }
+    private func stop() {
+        repeater?.invalidate()
+        repeater = nil
     }
 }
 
@@ -255,6 +352,7 @@ struct FloatingTabBar: View {
 // Pillret i statusraden. Fylld i ljust läge, konturad i mörkt, som i facit.
 struct TRStatusPill: View {
     var title: String
+    var height: CGFloat = 33
     var action: () -> Void
     @Environment(\.colorScheme) private var scheme
 
@@ -267,7 +365,7 @@ struct TRStatusPill: View {
                 .trLabelScaling()
                 .foregroundStyle(colors.accentText)
                 .padding(.horizontal, 18)
-                .frame(height: TR.Size.statusRow)
+                .frame(height: height)
                 .frame(minWidth: TR.Size.hitTargetMin)
                 .background(colors.accent.opacity(scheme == .dark ? 0.10 : 0.16), in: shape)
                 .overlay {

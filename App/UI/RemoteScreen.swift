@@ -1,8 +1,8 @@
 import SwiftUI
 import AiMCore
 
-// Fjärr, ritad efter facit sid 1 (ljust) och sid 2 (mörkt).
-// Måtten är uppmätta i sid 1, referens 390 x 844.
+// Fjärr. Ljust läge ritas efter facit sid 1, mörkt efter sid 2. Måtten
+// ligger i TR.Layout och är uppmätta i respektive sida (390 x 844).
 @MainActor
 struct RemoteScreen: View {
     @ObservedObject var connection: TVConnection
@@ -10,91 +10,110 @@ struct RemoteScreen: View {
 
     @Environment(\.colorScheme) private var scheme
 
-    /// Panelen behåller facit-proportionerna och skalas bara i höjd, så att
-    /// den fyller ytan ned till flikraden oavsett säker yta.
+    /// Panelen behåller facit-proportionerna. Bredderna skalas mot facit-
+    /// sidans innerbredd, höjden mot ytan som finns kvar ned till flikraden.
     private struct Metrics {
+        var l: TR.Layout
         var width: CGFloat
         var inner: CGFloat
-        var scale: CGFloat
+        var h: CGFloat          // bredd-skala
+        var v: CGFloat          // höjd-skala
         var rocker: CGFloat
+        var rockerHeight: CGFloat
+        var keyWidth: CGFloat
         var smallKey: CGFloat
         var smallKeyGap: CGFloat
+        var columnGap: CGFloat
         var dpadKey: CGFloat
+        var dpadColumnGap: CGFloat
+        var dpadRow: CGFloat
         var dpadRowGap: CGFloat
-        var media: CGFloat
-        var gap: CGFloat
+        var mediaWidth: CGFloat
+        var mediaHeight: CGFloat
+        var mediaGap: CGFloat
+        var gapRockerDpad: CGFloat
+        var gapDpadMedia: CGFloat
         var padTop: CGFloat
         var padBottom: CGFloat
         var height: CGFloat
-        /// Bredder inom panelen
-        var columnGap: CGFloat
-        var keyWidth: CGFloat
-        var dpadColumn: CGFloat
-        var mediaWidth: CGFloat
     }
 
     private func metrics(width: CGFloat, height: CGFloat) -> Metrics {
-        let inner = width - TR.Size.panelPaddingH * 2
-        let columnGap = TR.Size.columnGap
-        let keyWidth = max((inner - TR.Size.rockerWidth * 2 - columnGap * 3) / 2, TR.Size.hitTargetMin)
-        let dpadColumn = max((inner - TR.Size.dpadColumnGap * 2) / 3, TR.Size.hitTargetMin)
-        let mediaWidth = max((inner - columnGap * 3) / 4, TR.Size.hitTargetMin)
+        let l = TR.Layout.of(scheme)
+        let inner = width - l.panelPaddingH * 2
+        let h = inner / l.referenceInner
+        let v = min(1.18, max(0.80, height / l.panelHeight))
 
-        let s = min(1.18, max(0.80, height / TR.Size.panelHeight))
-        let dpadKey = min(dpadColumn, TR.Size.dpadKey * s)
-        let rocker = TR.Size.rockerHeight * s
-        let media = max(TR.Size.mediaKey * s, TR.Size.hitTargetMin)
-        let gap = TR.Size.panelGap * s
-        let padTop = TR.Size.panelPaddingTop * s
-        let padBottom = TR.Size.panelPaddingBottom * s
-        let dpadRowGap = TR.Size.dpadRowGap * s
+        let rocker = l.rockerWidth * h
+        let columnGap = l.columnGap * h
+        let keyWidth = max((inner - rocker * 2 - columnGap * 3) / 2, TR.Size.hitTargetMin)
+        let dpadKey = l.dpadKey * h
+        let mediaWidth = max(l.mediaWidth * h, TR.Size.hitTargetMin)
+
+        let rockerHeight = l.rockerHeight * v
+        let dpadRow = min(dpadKey, l.dpadRow * v)
+        let mediaHeight = max(l.mediaHeight * v, TR.Size.hitTargetMin)
+        let gapRockerDpad = l.gapRockerDpad * v
+        let gapDpadMedia = l.gapDpadMedia * v
+        let dpadRowGap = l.dpadRowGap * v
+        let padTop = l.panelPaddingTop * v
+        let padBottom = l.panelPaddingBottom * v
 
         return Metrics(
+            l: l,
             width: width,
             inner: inner,
-            scale: s,
+            h: h,
+            v: v,
             rocker: rocker,
-            smallKey: max(TR.Size.smallKey * s, TR.Size.hitTargetMin),
-            smallKeyGap: TR.Size.smallKeyGap * s,
+            rockerHeight: rockerHeight,
+            keyWidth: keyWidth,
+            smallKey: max(l.smallKey * v, TR.Size.hitTargetMin),
+            smallKeyGap: l.smallKeyGap * v,
+            columnGap: columnGap,
             dpadKey: dpadKey,
+            dpadColumnGap: l.dpadColumnGap * h,
+            dpadRow: dpadRow,
             dpadRowGap: dpadRowGap,
-            media: media,
-            gap: gap,
+            mediaWidth: mediaWidth,
+            mediaHeight: mediaHeight,
+            mediaGap: l.mediaGap * h,
+            gapRockerDpad: gapRockerDpad,
+            gapDpadMedia: gapDpadMedia,
             padTop: padTop,
             padBottom: padBottom,
-            height: padTop + rocker + gap + dpadKey * 3 + dpadRowGap * 2
-                + gap + media + padBottom,
-            columnGap: columnGap,
-            keyWidth: keyWidth,
-            dpadColumn: dpadColumn,
-            mediaWidth: mediaWidth
+            height: padTop + rockerHeight + gapRockerDpad + dpadRow * 3
+                + dpadRowGap * 2 + gapDpadMedia + mediaHeight + padBottom
         )
     }
 
     var body: some View {
-        GeometryReader { geometry in
+        let l = TR.Layout.of(scheme)
+        return GeometryReader { geometry in
             // Flikraden är redan avdragen av RemoteRoot.
-            let above = TR.Size.headerCard + 7 + TR.Size.statusRow + 13
-            let m = metrics(width: geometry.size.width - TR.Size.sidePadding * 2,
+            let above = l.topPadding + l.headerHeight + l.gapHeaderStatus
+                + l.statusRow + l.gapStatusPanel
+            let m = metrics(width: geometry.size.width - l.sidePadding * 2,
                             height: max(geometry.size.height - above - 10, 1))
             VStack(alignment: .leading, spacing: 0) {
-                header
-                statusRow.padding(.top, 7)
-                panel(m).padding(.top, 13)
+                header(l)
+                statusRow(l).padding(.top, l.gapHeaderStatus)
+                panel(m).padding(.top, l.gapStatusPanel)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, TR.Size.sidePadding)
+            .padding(.top, l.topPadding)
+            .padding(.horizontal, l.sidePadding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     // MARK: - Toppkort
 
-    private var header: some View {
+    private func header(_ l: TR.Layout) -> some View {
         let colors = TR.Colors.of(scheme)
-        let shape = RoundedRectangle(cornerRadius: TR.Radius.headerCard, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: l.headerHeight / 2, style: .continuous)
         return HStack(spacing: 0) {
-            PowerButton { connection.press(.power) }
+            PowerButton(size: l.powerButton, icon: l.powerIcon) { connection.press(.power) }
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(connection.tvName)
@@ -108,26 +127,26 @@ struct RemoteScreen: View {
                     .foregroundStyle(colors.textSecondary)
                     .lineLimit(1)
             }
-            .padding(.leading, 19)
+            .padding(.leading, l.headerTextGap)
 
             Spacer(minLength: 8)
 
             Button {
                 openPanel(.chooseTV)
             } label: {
-                TRDisplayIcon(width: 27, color: colors.textPrimary)
+                TRDisplayIcon(width: l.displayIcon, color: colors.textPrimary)
                     .frame(width: TR.Size.hitTargetMin, height: TR.Size.hitTargetMin)
                     .contentShape(Rectangle())
             }
             .buttonStyle(TRPressStyle())
             .accessibilityLabel("Välj TV")
         }
-        .padding(.horizontal, TR.Size.headerPadding)
-        .frame(height: TR.Size.headerCard)
+        .padding(.horizontal, l.headerPadding)
+        .frame(height: l.headerHeight)
         .background {
-            // Facit ritar kortets yta i ljust läge; i mörkt ligger huvudet
-            // direkt på bakgrunden (sid 1 mot sid 2).
-            if scheme == .light {
+            // Facit sid 1 ritar kortets yta; sid 2 lägger huvudet direkt på
+            // bakgrunden.
+            if l.headerFilled {
                 shape.fill(colors.surface)
                     .overlay(shape.stroke(colors.line, lineWidth: 1))
             }
@@ -136,7 +155,7 @@ struct RemoteScreen: View {
 
     // MARK: - Statusrad
 
-    private var statusRow: some View {
+    private func statusRow(_ l: TR.Layout) -> some View {
         let colors = TR.Colors.of(scheme)
         return HStack(spacing: 10) {
             StatusDot(state: state)
@@ -145,7 +164,7 @@ struct RemoteScreen: View {
                 .trLabelScaling()
                 .foregroundStyle(state.textColor(colors))
             Spacer(minLength: 8)
-            TRStatusPill(title: state.pill) {
+            TRStatusPill(title: state.pill, height: l.statusRow) {
                 switch state {
                 case .connected: connection.disconnect()
                 default: openPanel(.chooseTV)
@@ -153,8 +172,8 @@ struct RemoteScreen: View {
             }
             .accessibilityLabel(state.pill)
         }
-        .padding(.horizontal, TR.Size.statusInset)
-        .frame(height: TR.Size.statusRow)
+        .padding(.horizontal, l.statusInset)
+        .frame(height: l.statusRow)
     }
 
     private var state: RemoteState {
@@ -172,11 +191,9 @@ struct RemoteScreen: View {
         return VStack(spacing: 0) {
             // Rad 1: Kanal-vippa, 2x2-rutnät, Volym-vippa.
             HStack(spacing: m.columnGap) {
-                TRRocker(title: "Kanal", upLabel: "Nästa kanal", downLabel: "Föregående kanal",
-                         height: m.rocker, keyHeight: m.rocker * 0.378,
-                         up: { connection.press(.channelUp) },
-                         down: { connection.press(.channelDown) })
-                    .disabled(!connection.ready)
+                rocker("Kanal", "Nästa kanal", "Föregående kanal", m,
+                       up: { connection.press(.channelUp) },
+                       down: { connection.press(.channelDown) })
 
                 VStack(spacing: m.smallKeyGap) {
                     HStack(spacing: m.columnGap) {
@@ -192,21 +209,19 @@ struct RemoteScreen: View {
                         smallKey("keyboard", "Öppna tangentbord", m) { openPanel(.keyboard) }
                     }
                 }
-                .frame(height: m.rocker)
+                .frame(height: m.rockerHeight)
 
-                TRRocker(title: "Volym", upLabel: "Höj volymen", downLabel: "Sänk volymen",
-                         height: m.rocker, keyHeight: m.rocker * 0.378,
-                         up: { connection.press(.volumeUp) },
-                         down: { connection.press(.volumeDown) })
-                    .disabled(!connection.ready)
+                rocker("Volym", "Höj volymen", "Sänk volymen", m,
+                       up: { connection.press(.volumeUp) },
+                       down: { connection.press(.volumeDown) })
             }
-            .frame(height: m.rocker)
+            .frame(height: m.rockerHeight)
 
-            Spacer(minLength: 0).frame(height: m.gap)
+            Spacer(minLength: 0).frame(height: m.gapRockerDpad)
 
             // Rad 2: 3 x 3 med 123, pilar, OK, mikrofon, tillbaka och hem.
             VStack(spacing: m.dpadRowGap) {
-                HStack(spacing: m.columnGap) {
+                HStack(spacing: m.dpadColumnGap) {
                     ghost(m, "Sifferknappar") { openPanel(.numbers) } label: {
                         Text("123").font(TR.Font.numeric)
                     }
@@ -223,22 +238,22 @@ struct RemoteScreen: View {
                     }
                     .disabled(!connection.ready)
                 }
-                HStack(spacing: m.columnGap) {
+                HStack(spacing: m.dpadColumnGap) {
                     dpadKey("chevron.left", "Vänster", m) { connection.press(.left) }
                         .disabled(!connection.ready)
-                    TRKey(width: m.dpadKey, height: m.dpadKey, radius: TR.Radius.dpadKey) {
+                    TRKey(width: m.dpadKey, height: m.dpadRow, radius: TR.Radius.dpadKey,
+                          dims: false) {
                         TRHaptics.ok()
                         connection.press(.ok)
                     } label: {
                         Text("OK").font(.system(size: 21, weight: .bold))
                     }
-                    .frame(width: m.dpadColumn, height: m.dpadKey)
                     .accessibilityLabel("Bekräfta")
                     .disabled(!connection.ready)
                     dpadKey("chevron.right", "Höger", m) { connection.press(.right) }
                         .disabled(!connection.ready)
                 }
-                HStack(spacing: m.columnGap) {
+                HStack(spacing: m.dpadColumnGap) {
                     ghost(m, "Gå tillbaka") { connection.press(.back) } label: {
                         Image(systemName: "arrow.left").font(.system(size: 26))
                     }
@@ -252,10 +267,10 @@ struct RemoteScreen: View {
                 }
             }
 
-            Spacer(minLength: 0).frame(height: m.gap)
+            Spacer(minLength: 0).frame(height: m.gapDpadMedia)
 
             // Rad 3: mediatangenter.
-            HStack(spacing: m.columnGap) {
+            HStack(spacing: m.mediaGap) {
                 mediaKey("backward", "Spola bakåt", m) { connection.press(.rewind) }
                 mediaKey("play", "Spela", m) { connection.press(.play) }
                 mediaKey("pause", "Paus", m) { connection.press(.pause) }
@@ -263,7 +278,7 @@ struct RemoteScreen: View {
             }
             .disabled(!connection.ready)
         }
-        .padding(.horizontal, TR.Size.panelPaddingH)
+        .padding(.horizontal, m.l.panelPaddingH)
         .padding(.top, m.padTop)
         .padding(.bottom, m.padBottom)
         .frame(width: m.width, height: m.height)
@@ -271,10 +286,22 @@ struct RemoteScreen: View {
         .overlay(shape.stroke(colors.line, lineWidth: 1))
     }
 
+    private func rocker(_ title: String, _ upLabel: String, _ downLabel: String, _ m: Metrics,
+                        up: @escaping () -> Void, down: @escaping () -> Void) -> some View {
+        TRRocker(title: title, upLabel: upLabel, downLabel: downLabel,
+                 width: m.rocker, height: m.rockerHeight,
+                 split: m.l.rockerSplit,
+                 keyHeight: m.l.rockerKey * m.v,
+                 inset: m.l.rockerInset,
+                 up: up, down: down)
+            .disabled(!connection.ready)
+    }
+
     private func smallKey(_ icon: String, _ label: String, _ m: Metrics,
                           action: @escaping () -> Void) -> some View {
         TRKey(width: m.keyWidth, height: m.smallKey,
-              radius: min(TR.Radius.smallKey, m.smallKey / 2), action: action) {
+              radius: min(TR.Radius.smallKey, m.smallKey / 2),
+              dims: false, action: action) {
             Image(systemName: icon).font(.system(size: 22))
         }
         .accessibilityLabel(label)
@@ -282,25 +309,26 @@ struct RemoteScreen: View {
 
     private func dpadKey(_ icon: String, _ label: String, _ m: Metrics,
                          action: @escaping () -> Void) -> some View {
-        TRKey(width: m.dpadKey, height: m.dpadKey, radius: TR.Radius.dpadKey,
-              repeats: true, action: action) {
+        TRKey(width: m.dpadKey, height: m.dpadRow, radius: TR.Radius.dpadKey,
+              repeats: true, dims: false, action: action) {
             Image(systemName: icon).font(.system(size: 24, weight: .medium))
         }
-        .frame(width: m.dpadColumn, height: m.dpadKey)
         .accessibilityLabel(label)
     }
 
     private func ghost<L: View>(_ m: Metrics, _ label: String,
                                 action: @escaping () -> Void,
                                 @ViewBuilder label content: () -> L) -> some View {
-        TRGhostButton(width: m.dpadColumn, height: m.dpadKey, action: action, label: content)
+        TRGhostButton(width: m.dpadKey, height: m.dpadRow, dims: false,
+                      action: action, label: content)
             .accessibilityLabel(label)
     }
 
     private func mediaKey(_ icon: String, _ label: String, _ m: Metrics,
                           action: @escaping () -> Void) -> some View {
-        TRKey(width: m.mediaWidth, height: m.media,
-              radius: min(TR.Radius.mediaKey, m.media / 2), action: action) {
+        TRKey(width: m.mediaWidth, height: m.mediaHeight,
+              radius: min(TR.Radius.mediaKey, m.mediaHeight / 2),
+              dims: false, action: action) {
             Image(systemName: icon).font(.system(size: 20))
         }
         .accessibilityLabel(label)
@@ -309,6 +337,8 @@ struct RemoteScreen: View {
 
 // Av- och påknappen: röd symbol i en rund yta, med rött sken i ljust läge.
 private struct PowerButton: View {
+    var size: CGFloat
+    var icon: CGFloat
     var action: () -> Void
     @Environment(\.colorScheme) private var scheme
 
@@ -319,9 +349,9 @@ private struct PowerButton: View {
             action()
         } label: {
             Image(systemName: "power")
-                .font(.system(size: 24, weight: .medium))
+                .font(.system(size: icon, weight: .medium))
                 .foregroundStyle(colors.danger)
-                .frame(width: TR.Size.powerButton, height: TR.Size.powerButton)
+                .frame(width: size, height: size)
                 .background {
                     Circle()
                         .fill(colors.surfaceElevated)
