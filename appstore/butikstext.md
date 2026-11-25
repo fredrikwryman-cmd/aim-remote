@@ -18,8 +18,8 @@ Remote
 
 Namnet måste vara ledigt i hela App Store, och "Remote" är ett vanligt ord.
 Är det taget kommer App Store Connect säga det direkt när du skriver in det.
-Fungerar inte det namnet är nästa val `Remote – Tech Rabbit` (20 tecken), som
-behåller ordet först i namnet och lägger till avsändaren.
+Fungerar inte det namnet är nästa val `AI-Remote TechRabbit` (20 tecken), som
+behåller ordet Remote i namnet och lägger till avsändaren.
 
 Utvecklarnamn (visas under appnamnet): **TechRabbit**. Det sätts på kontot,
 inte per app, och ändras under Account → Business Information.
@@ -97,22 +97,18 @@ Varje app på TV:n bestämmer själv vilka knappar den lyssnar på, så en knapp
 ## Sökord
 
 ```
-fjärrkontroll,tv,tv-kontroll,styra tv,smart tv,sifferknappar,tangentbord,volym,wifi,fjärr
+fjärrkontroll,android tv,google tv,tv-kontroll,styra tv,smart tv,tangentbord,volym,wifi
 ```
 
-**89 tecken** (gräns 100).
+**87 tecken** (gräns 100).
 
 Inga mellanslag efter kommatecknen: de räknas med i de 100 tecknen. Ord som
 redan står i namnet eller undertiteln behöver inte upprepas här, Apple
 indexerar dem ändå.
 
-**Om du vill ta risken:** den här varianten fångar fler sökningar men
-innehåller Googles varumärken, och granskaren kan invända mot det även när
-appen faktiskt är kompatibel. Teckenantal 87.
-
-```
-fjärrkontroll,android tv,google tv,tv-kontroll,styra tv,smart tv,tangentbord,volym,wifi
-```
+Raden innehåller Googles varumärken android tv och google tv. Det är avsiktligt:
+det är så folk söker efter den här typen av app. Appen är kompatibel med båda,
+och beskrivningen säger rakt ut att appen inte kommer från Google.
 
 ---
 

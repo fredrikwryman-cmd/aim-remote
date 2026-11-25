@@ -15,15 +15,16 @@ Allt du själv ska göra står samlat som numrerade steg längst ned.
 | Support-URL | https://fredrikwryman-cmd.github.io/aim-remote/site/support.html | KLART, svarar 200 |
 | URL till integritetspolicy | https://fredrikwryman-cmd.github.io/aim-remote/site/integritet.html | KLART, svarar 200 |
 | Startsida för sidorna | https://fredrikwryman-cmd.github.io/aim-remote/ | KLART, svarar 200 |
+| Supportmejl på sidorna | info@aimstudios.se, som mailto-länk på båda sidorna | KLART |
 
 GitHub Pages är påslaget för repot med källa `main` och mappen `/docs`, och
 bygget gick igenom. Sidorna ligger i `docs/site/`, så ändrar du dem räcker det
 att pusha; Pages bygger om av sig självt inom en minut eller två.
 
-Supportmejlen är **SAKNAS** på båda sidorna, markerad med
-`[SAKNAS: supportmejl]` i texten. Apple kräver ett sätt att nå dig, och vilken
-adress som ska stå offentligt på webben är ditt beslut, inte något jag ska
-gissa. Se steg 1 nedan.
+Supportmejlen är **KLART**: `info@aimstudios.se` står på både supportsidan och
+integritetssidan, som en mailto-länk. Samma adress hör också in i
+granskningsanteckningen och under App Review Information, så granskaren och
+användaren når dig på samma ställe.
 
 ---
 
@@ -72,7 +73,9 @@ appen.
 | Punkt | Läge | Status |
 |---|---|---|
 | Namn, undertitel, reklamtext, beskrivning, sökord, kategori, åldersgräns, copyright | Färdigt i `appstore/butikstext.md` med teckenantal per fält | KLART att klistra in, FREDRIK GÖR i App Store Connect |
-| App Privacy | Svaren står i `appstore/integritet.md`. Väntat svar: Data Not Collected | FREDRIK GÖR, se steg 5 |
+| Appnamn | `Remote` (6 tecken), reservnamn `AI-Remote TechRabbit` (20 tecken) om Remote är taget | KLART, beslutat |
+| Sökordsrad | `fjärrkontroll,android tv,google tv,tv-kontroll,styra tv,smart tv,tangentbord,volym,wifi`, 87 tecken av 100 | KLART, beslutat |
+| App Privacy | Svaren står i `appstore/integritet.md`. Väntat svar: Data Not Collected | FREDRIK GÖR, se steg 1 |
 | Skärmbilder | `appstore/skarmbilder/1206x2622/` (6,3 tum, krävs) och `appstore/skarmbilder/1320x2868/` (6,9 tum, frivilligt). Tio bilder per storlek: Fjärr, Välj TV, Sifferknappar, Tangentbord och Inställningar, först mörkt och sedan ljust | KLART |
 | Appförhandsvisning (video) | Finns inte, och Apple kräver den inte | Behövs inte |
 
@@ -152,7 +155,7 @@ and no third-party SDK in the app.
 The app is independent. It is not published by, endorsed by or affiliated with
 TCL or Google. Android TV and Google TV are trademarks of Google.
 
-Contact: Fredrik Ryman, TechRabbit — <fyll i supportmejlen>
+Contact: Fredrik Ryman, TechRabbit — info@aimstudios.se
 ```
 
 Demo-video behövs inte. Granskaren kommer åt varje skärm utan TV, och det är
@@ -168,7 +171,7 @@ Review Information som bilaga; då slipper du en ny anmärkning i nästa runda.
 |---|---|---|
 | App Review Information: förnamn, efternamn | Fredrik Ryman | FREDRIK GÖR |
 | App Review Information: telefon | Ditt nummer | FREDRIK GÖR |
-| App Review Information: e-post | Samma adress som på supportsidan | FREDRIK GÖR |
+| App Review Information: e-post | info@aimstudios.se, samma adress som på supportsidan | FREDRIK GÖR |
 | Utvecklarnamn som visas i butiken | TechRabbit | FREDRIK GÖR, sätts på kontot |
 
 Kontaktuppgifterna under App Review Information visas inte offentligt. Det är
@@ -178,31 +181,26 @@ bara supportsidans adress som är publik.
 
 ## Det du själv ska göra
 
-1. **Bestäm supportmejlen.** Välj en adress som får stå på en öppen webbsida.
-   Byt ut `[SAKNAS: supportmejl]` i `docs/site/support.html` och
-   `docs/site/integritet.html`, och `<fyll i supportmejlen>` i
-   granskningsanteckningen ovan. Pusha, och Pages bygger om sidorna själv.
-
-2. **Fyll i App Privacy** enligt `appstore/integritet.md`. Svaret är *No, we do
+1. **Fyll i App Privacy** enligt `appstore/integritet.md`. Svaret är *No, we do
    not collect data from this app*. Publicera avsnittet.
 
-3. **Klistra in butikstexten** ur `appstore/butikstext.md`: namn, undertitel,
+2. **Klistra in butikstexten** ur `appstore/butikstext.md`: namn, undertitel,
    reklamtext, beskrivning, sökord, kategori, copyright, support-URL och URL
    till integritetspolicyn.
 
-4. **Fyll i åldersgränsen** med svaren i samma fil. Resultatet ska bli 4+.
+3. **Fyll i åldersgränsen** med svaren i samma fil. Resultatet ska bli 4+.
 
-5. **Ladda upp skärmbilderna** ur `appstore/skarmbilder/1206x2622/` i
+4. **Ladda upp skärmbilderna** ur `appstore/skarmbilder/1206x2622/` i
    nummerordning 01 till 10. Vill du även fylla 6,9-tumsplatsen, ta
    `appstore/skarmbilder/1320x2868/` på samma sätt.
 
-6. **Bygg och ladda upp appen.** Signerat bygge krävs, och det gör `ios.yml`
+5. **Bygg och ladda upp appen.** Signerat bygge krävs, och det gör `ios.yml`
    inte: den bygger osignerat. Använd `testflight.yml` när du har ett
    Apple Developer-konto och nycklarna på plats. Starta den inte på vinst och
    förlust; gå igenom `TESTFLIGHT.md` först.
 
-7. **Fyll i App Review Information**: namn, telefon, e-post och
-    granskningsanteckningen ovan.
+6. **Fyll i App Review Information**: namn, telefon, e-post och
+   granskningsanteckningen ovan.
 
-8. **Skicka in.** Inget i det här repot laddar upp något till App Store
-    Connect, och ingenting har skickats in. Det sista klicket är ditt.
+7. **Skicka in.** Inget i det här repot laddar upp något till App Store
+   Connect, och ingenting har skickats in. Det sista klicket är ditt.
