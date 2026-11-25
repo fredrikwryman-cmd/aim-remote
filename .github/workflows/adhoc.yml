@@ -71,6 +71,16 @@ jobs:
           python3 "$GITHUB_WORKSPACE/scripts/asc_register_device.py" \
             "$DEVICE_UDID" "$DEVICE_NAME" "$DEVICE_PLATFORM"
 
+      # Varje korning sker pa en ny runner utan den privata nyckeln till
+      # kontots befintliga certifikat, sa automatisk signering skapar ett
+      # nytt. Ar Apples tak natt faller arkiveringen med exit 65 och ett
+      # svarlast fel. Listningen skriver ut vad som finns och sager till i
+      # klartext. Bara lasning: inget aterkallas har.
+      - name: List certificates
+        continue-on-error: true
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/asc_list_certificates.py"
+
       - name: Resolve team ID
         run: |
           if [ -n "$TEAM_ID_INPUT" ]; then
