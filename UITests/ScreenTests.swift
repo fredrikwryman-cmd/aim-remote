@@ -91,10 +91,10 @@ final class ScreenTests: XCTestCase {
             .firstMatch.exists)
 
         let systemIsDark = UITraitCollection.current.userInterfaceStyle == .dark
-        guard let luma = backgroundLuma(of: app) else {
-            return XCTFail("Kunde inte lasa en bildpunkt ur skarmbilden.")
-        }
         // Bakgrunden ar #EEF0F2 i ljust lage och #071015 i morkt.
+        let luma = settledBackgroundLuma(of: app) {
+            systemIsDark ? $0 < 0.35 : $0 > 0.65
+        }
         if systemIsDark {
             XCTAssertLessThan(luma, 0.35,
                               "Systemet ar i morkt lage men appen ritar ljust (luma \(luma)).")
@@ -108,9 +108,7 @@ final class ScreenTests: XCTestCase {
     func testDarkChoiceStaysDarkWhenSystemIsLight() {
         let app = launch(theme: "dark")
         XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 60))
-        guard let luma = backgroundLuma(of: app) else {
-            return XCTFail("Kunde inte lasa en bildpunkt ur skarmbilden.")
-        }
+        let luma = settledBackgroundLuma(of: app) { $0 < 0.35 }
         XCTAssertLessThan(luma, 0.35,
                           "Valet Morkt ska rita morkt oavsett telefonens lage (luma \(luma)).")
     }
@@ -129,6 +127,24 @@ final class ScreenTests: XCTestCase {
         XCTAssertTrue(app.buttons["Mörkt"].isSelected,
                       "Morkt ar standard och ska vara markerat.")
         app.buttons["Stäng"].tap()
+    }
+
+    /// preferredColorScheme gar via fonstret, sa den forsta bildrutan kan annu
+    /// vara ritad i systemets lage. Darfor lases bakgrunden om tills den
+    /// stamt eller tiden gatt ut, och sista varde returneras antingen vag.
+    private func settledBackgroundLuma(of app: XCUIApplication,
+                                       timeout: TimeInterval = 10,
+                                       where matches: (CGFloat) -> Bool) -> CGFloat {
+        let deadline = Date().addingTimeInterval(timeout)
+        var last: CGFloat = -1
+        repeat {
+            if let luma = backgroundLuma(of: app) {
+                last = luma
+                if matches(luma) { return luma }
+            }
+            _ = app.buttons["Fjärr"].waitForExistence(timeout: 0.4)
+        } while Date() < deadline
+        return last
     }
 
     /// Ljusheten i en punkt uppe till vanster, dar bara bakgrunden ligger.
