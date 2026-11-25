@@ -41,8 +41,23 @@ final class DesignShotTests: XCTestCase {
         openPanel(app, tap: app.buttons["Sifferknappar"], title: "Sifferknappar", name: "P05_123_\(theme)")
         openPanel(app, tap: app.buttons["Öppna tangentbord"], title: "Tangentbord", name: "P06_tangentbord_\(theme)")
 
+        // Tangentbordspanelen fokuserar ett falt, sa telefonens tangentbord
+        // ligger kvar en stund efter att panelen stangts. Det tacker flikraden
+        // langst ner, sa trycket pa Installningar maste vanta ut det.
+        XCTAssertTrue(waitUntilGone(app.keyboards.element),
+                      "telefonens tangentbord lag kvar over flikraden")
+
         // Inställningar (facit sid 3 ljust, sid 4 mörkt)
-        app.buttons["Inställningar"].tap()
+        let settingsTab = app.buttons["Inställningar"]
+        XCTAssertTrue(settingsTab.waitForExistence(timeout: 10))
+        XCTAssertTrue(waitUntilHittable(settingsTab), "flikraden gick inte att na")
+        settingsTab.tap()
+        // Rubriken "Inställningar" finns bara pa inställningsskärmen, men raden
+        // Hjälp finns bara dar ocksa och ar ett sakrare bevis pa att fliken
+        // verkligen byttes: ett tryck som slukas av en panel pa vag ut ska
+        // falla har och inte senare.
+        XCTAssertTrue(app.buttons["Hjälp"].waitForExistence(timeout: 15),
+                      "fliken Inställningar öppnades inte")
         XCTAssertTrue(app.staticTexts["Inställningar"].waitForExistence(timeout: 10))
         shoot(app, "R03_installningar_\(theme)")
 
@@ -55,9 +70,10 @@ final class DesignShotTests: XCTestCase {
     private func openPanel(_ app: XCUIApplication, tap opener: XCUIElement,
                            title: String, name: String,
                            settleOn: String? = nil) {
-        XCTAssertTrue(opener.waitForExistence(timeout: 10), "hittade inte knappen till \(title)")
+        XCTAssertTrue(opener.waitForExistence(timeout: 15), "hittade inte knappen till \(title)")
+        XCTAssertTrue(waitUntilHittable(opener), "knappen till \(title) gick inte att trycka pa")
         opener.tap()
-        XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 10),
+        XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 15),
                       "panelen \(title) öppnades inte")
         if let settleOn {
             XCTAssertTrue(app.staticTexts[settleOn].waitForExistence(timeout: 30),
@@ -65,7 +81,36 @@ final class DesignShotTests: XCTestCase {
         }
         shoot(app, name)
         let close = app.buttons["Stäng"].firstMatch
-        if close.waitForExistence(timeout: 5) { close.tap() }
+        XCTAssertTrue(close.waitForExistence(timeout: 10),
+                      "panelen \(title) hade ingen stangknapp")
+        close.tap()
+        // Panelen glider ut. Nasta tryck far inte landa i den rorelsen, sa
+        // det vantar tills stangknappen ar borta ur hierarkin.
+        XCTAssertTrue(waitUntilGone(close), "panelen \(title) stangdes inte")
+    }
+
+    /// Vantar tills elementet ar borta. waitForExistence svarar direkt nar
+    /// elementet finns och kan darfor inte anvandas at andra hallet.
+    private func waitUntilGone(_ element: XCUIElement,
+                               timeout: TimeInterval = 15) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if !element.exists { return true }
+            _ = element.waitForExistence(timeout: 0.2)
+        }
+        return !element.exists
+    }
+
+    /// Ett element kan finnas i hierarkin innan det gar att trycka pa, till
+    /// exempel medan en panel fortfarande ligger over det.
+    private func waitUntilHittable(_ element: XCUIElement,
+                                   timeout: TimeInterval = 15) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.isHittable { return true }
+            _ = element.waitForExistence(timeout: 0.2)
+        }
+        return element.isHittable
     }
 
     private func row(_ app: XCUIApplication, beginningWith prefix: String) -> XCUIElement {

@@ -1,6 +1,25 @@
 import XCTest
 import UIKit
 
+// Sokningen i Valj TV byter laddningsskelett mot tomt lage efter ca 8 s, eller
+// mot en lista om en TV svarar. Bada ar vila; skelettet ar det inte. Skelettet
+// ligger i hierarkin som en Alert med etiketten "Söker efter TV-apparater", och
+// XCTest letar efter avbrytande element fore varje tryck. Forsvinner skelettet
+// mellan letandet och trycket faller trycket pa en snapshot som inte langre
+// finns, och det ar den ostadigheten testerna rakade ut for.
+func waitUntilSearchHasSettled(_ app: XCUIApplication,
+                               timeout: TimeInterval = 30) -> Bool {
+    let skeleton = app.descendants(matching: .any)
+        .matching(NSPredicate(format: "label == %@", "Söker efter TV-apparater"))
+        .firstMatch
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+        if !skeleton.exists { return true }
+        _ = skeleton.waitForExistence(timeout: 0.3)
+    }
+    return !skeleton.exists
+}
+
 final class ScreenTests: XCTestCase {
     private func launch(onboarded: Bool = true, theme: String = "dark") -> XCUIApplication {
         let app = XCUIApplication()
@@ -46,7 +65,9 @@ final class ScreenTests: XCTestCase {
         XCTAssertTrue(app.buttons["Inställningar"].waitForExistence(timeout: 60))
         app.buttons["Inställningar"].tap()
 
-        XCTAssertTrue(app.staticTexts["Inställningar"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Hjälp"].waitForExistence(timeout: 15),
+                      "fliken Inställningar öppnades inte")
+        XCTAssertTrue(app.staticTexts["Inställningar"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["Tech Rabbit Remote, Din TV. Din kontroll."].exists)
         XCTAssertTrue(first(app, beginningWith: "TV och anslutning").exists)
         XCTAssertTrue(app.buttons["Hjälp"].exists)
@@ -60,9 +81,21 @@ final class ScreenTests: XCTestCase {
         let app = launch()
         XCTAssertTrue(app.buttons["Välj TV"].waitForExistence(timeout: 60))
         app.buttons["Välj TV"].tap()
-        XCTAssertTrue(app.staticTexts["Välj TV"].waitForExistence(timeout: 5))
-        app.buttons["Stäng"].tap()
-        XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 5))
+        let title = app.staticTexts["Välj TV"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
+
+        // Medan sokningen pagar ligger laddningsskelettet i hierarkin som en
+        // Alert med etiketten "Söker efter TV-apparater". XCTest letar efter
+        // avbrytande element fore varje tryck, och om skelettet forsvinner
+        // mellan letandet och trycket faller trycket pa en snapshot som inte
+        // langre finns. Darfor vantar testet ut sokningen forst.
+        XCTAssertTrue(waitUntilSearchHasSettled(app), "sokningen i Välj TV kom aldrig i vila")
+
+        let close = app.buttons["Stäng"]
+        XCTAssertTrue(close.waitForExistence(timeout: 10))
+        close.tap()
+        XCTAssertTrue(waitForDisappearance(title), "panelen stangdes inte med X")
+        XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 10))
     }
 
     // Tangentbordspanelen: tre separata knappar.
@@ -70,11 +103,15 @@ final class ScreenTests: XCTestCase {
         let app = launch()
         XCTAssertTrue(app.buttons["Öppna tangentbord"].waitForExistence(timeout: 60))
         app.buttons["Öppna tangentbord"].tap()
-        XCTAssertTrue(app.staticTexts["Tangentbord"].waitForExistence(timeout: 5))
+        let title = app.staticTexts["Tangentbord"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["Radera ett tecken"].exists)
         XCTAssertTrue(app.buttons["Enter eller sök"].exists)
         XCTAssertTrue(app.buttons["Skicka text"].exists)
-        app.buttons["Stäng"].tap()
+        let close = app.buttons["Stäng"]
+        XCTAssertTrue(close.waitForExistence(timeout: 10))
+        close.tap()
+        XCTAssertTrue(waitForDisappearance(title), "tangentbordspanelen stangdes inte")
     }
 
     // Valet "Folj telefonen" ska ge samma lage som telefonen. Testet laser
@@ -118,9 +155,11 @@ final class ScreenTests: XCTestCase {
         let app = launch(theme: "dark")
         XCTAssertTrue(app.buttons["Inställningar"].waitForExistence(timeout: 60))
         app.buttons["Inställningar"].tap()
-        first(app, beginningWith: "Utseende").tap()
+        let row = first(app, beginningWith: "Utseende")
+        XCTAssertTrue(row.waitForExistence(timeout: 15), "raden Utseende hittades inte")
+        row.tap()
 
-        XCTAssertTrue(app.staticTexts["Utseende"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Utseende"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["Mörkt"].exists)
         XCTAssertTrue(app.buttons["Ljust"].exists)
         XCTAssertTrue(app.buttons["Följ telefonen"].exists)
@@ -202,11 +241,13 @@ final class BehaviourTests: XCTestCase {
         app.buttons["Välj TV"].tap()
         let title = app.staticTexts["Välj TV"]
         XCTAssertTrue(title.waitForExistence(timeout: 10))
+        XCTAssertTrue(waitUntilSearchHasSettled(app), "sokningen kom aldrig i vila")
         app.buttons["Stäng"].tap()
         XCTAssertTrue(waitForDisappearance(title), "panelen stangdes inte med X")
 
         app.buttons["Välj TV"].tap()
         XCTAssertTrue(title.waitForExistence(timeout: 10))
+        XCTAssertTrue(waitUntilSearchHasSettled(app), "sokningen kom aldrig i vila")
         let start = title.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         let end = start.withOffset(CGVector(dx: 0, dy: 420))
         start.press(forDuration: 0.05, thenDragTo: end)
@@ -219,11 +260,13 @@ final class BehaviourTests: XCTestCase {
         let app = launch()
         XCTAssertTrue(app.buttons["Inställningar"].waitForExistence(timeout: 60))
         app.buttons["Inställningar"].tap()
+        XCTAssertTrue(app.buttons["Hjälp"].waitForExistence(timeout: 15),
+                      "fliken Inställningar öppnades inte")
 
         let row = app.buttons
             .matching(NSPredicate(format: "label BEGINSWITH %@", "TV och anslutning"))
             .firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertTrue(row.waitForExistence(timeout: 15))
         row.tap()
         XCTAssertTrue(app.staticTexts["TV och anslutning"].waitForExistence(timeout: 10))
 
