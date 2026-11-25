@@ -16,7 +16,8 @@ Uppdaterat 2026-10-19.
 - Testad appkod: commit `940d1f1`.
 - Export av befintliga testbilder: https://github.com/fredrikwryman-cmd/aim-remote/actions/runs/39296440739
 - IPA SHA-256: `add2fff73bbd6f240ff2f18a355dcc6c98d27c2f1c3877c8ec2e19b41ce52890`
-- Storlek: 337559 byte. Version 0.1.0, build 1, bundle ID `se.aim.remote`.
+- Storlek: 337559 byte. Version 1.0.0, build 1, bundle ID `se.aim.remote`.
+- Versionen kommer ur `MARKETING_VERSION` i `project.yml` och står nu på 1.0.0, i appen, i widgeten och i den version appen skickar till TV:n vid handskakningen. Storleken och SHA-256 ovan gäller IPA:n från körningen i listan, som byggdes innan versionen höjdes.
 
 ## Återstår
 

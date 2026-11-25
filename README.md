@@ -21,7 +21,7 @@ Två huvudvyer enligt användarens referenser: **Fjärr** och **Inställningar**
 - Anslutningsstatus, tidsgränser och återanslutning när appen öppnas igen.
 - Knappvibration som kan stängas av.
 
-Detta är en första testversion. Protokollimplementation och användargränssnitt är skrivna; funktion på den fysiska TV:n måste provas. Att en knapp kan skickas innebär inte att varje TV-app reagerar på den. Påslagning från standby beror på TV:ns nätverksläge. Text och röst kan variera mellan appar. Castsymbolen i referensen används här som TV-väljare; foto-/videocasting ingår inte.
+Detta är version 1.0.0, den första utgåvan. Protokollimplementation och användargränssnitt är skrivna; funktion på den fysiska TV:n måste provas. Att en knapp kan skickas innebär inte att varje TV-app reagerar på den. Påslagning från standby beror på TV:ns nätverksläge. Text och röst kan variera mellan appar. Castsymbolen i referensen används här som TV-väljare; foto-/videocasting ingår inte.
 
 ## Bygga utan egen Mac
 
