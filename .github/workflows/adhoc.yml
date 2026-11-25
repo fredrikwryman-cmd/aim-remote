@@ -81,6 +81,13 @@ jobs:
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/asc_list_certificates.py"
 
+      # Id:na pa de certifikat som redan finns. Stadsteget efter exporten
+      # aterkallar bara det som tillkommit under den har korningen.
+      - name: Save certificate ids
+        run: |
+          mkdir -p build
+          python3 "$GITHUB_WORKSPACE/scripts/asc_revoke_ci_certificates.py"             --spara-id build/cert-baseline.txt
+
       - name: Resolve team ID
         run: |
           if [ -n "$TEAM_ID_INPUT" ]; then
@@ -126,6 +133,18 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           ls -la build/adhoc
+
+      # Automatisk signering skapade ett nytt Apple Development-certifikat
+      # under korningen. Det aterkallas har, sa att hogen inte vaxer och
+      # arkiveringen inte faller nasta gang av "Choose a certificate to
+      # revoke". Bara certifikat med namnet "Apple Development: Created via
+      # API" som saknas i listan ovan rors; distributionscertifikatet
+      # lamnas. Steget far aldrig falla korningen.
+      - name: Revoke certificates created by this run
+        if: always()
+        continue-on-error: true
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/asc_revoke_ci_certificates.py"             --utom-fil build/cert-baseline.txt || true
 
       - name: Verify IPA and embedded profiles
         run: |

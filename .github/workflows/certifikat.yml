@@ -1,0 +1,79 @@
+name: Rensa CI-certifikat
+
+# Molnbyggena signerar automatiskt pa en ny runner varje gang och skapar
+# darfor ett nytt Apple Development-certifikat per korning. Det har
+# arbetsflodet aterkallar dem. Bara de som heter exakt
+# "Apple Development: Created via API" rors; distributionscertifikatet
+# lamnas.
+
+on:
+  workflow_dispatch:
+    inputs:
+      torrkor:
+        description: Visa bara vad som skulle aterkallas
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: certifikat
+  cancel-in-progress: false
+
+jobs:
+  rensa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        run: |
+          missing=""
+          [ -n "$ASC_KEY_ID" ] || missing="$missing ASC_KEY_ID"
+          [ -n "$ASC_ISSUER_ID" ] || missing="$missing ASC_ISSUER_ID"
+          [ -n "$ASC_KEY_P8" ] || missing="$missing ASC_KEY_P8"
+          if [ -n "$missing" ]; then
+            echo "Saknade GitHub Secrets:$missing" >&2
+            exit 1
+          fi
+          echo "Alla tre secrets finns."
+
+      - name: Install API dependencies
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check pyjwt cryptography
+
+      - name: Install API key
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          python3 "$GITHUB_WORKSPACE/scripts/write_asc_key.py" "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Fore
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/asc_list_certificates.py"
+
+      - name: Aterkalla
+        run: |
+          if [ "${{ inputs.torrkor }}" = "true" ]; then
+            python3 "$GITHUB_WORKSPACE/scripts/asc_revoke_ci_certificates.py" --torrkor
+          else
+            python3 "$GITHUB_WORKSPACE/scripts/asc_revoke_ci_certificates.py"
+          fi
+
+      - name: Efterat
+        if: always()
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/asc_list_certificates.py"
+
+      - name: Remove API key
+        if: always()
+        run: rm -f "$HOME/.appstoreconnect/private_keys/"AuthKey_*.p8
