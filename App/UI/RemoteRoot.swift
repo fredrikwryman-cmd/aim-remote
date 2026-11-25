@@ -3,7 +3,7 @@ import AiMCore
 import UIKit
 
 enum Panel: String, Identifiable {
-    case connection, chooseTV, numbers, keyboard, help
+    case connection, chooseTV, numbers, keyboard, help, appearance
     var id: String { rawValue }
 }
 
@@ -12,6 +12,9 @@ enum MainTab { case remote, settings }
 @MainActor
 struct RemoteRoot: View {
     @ObservedObject var connection: TVConnection
+    /// Utseendet ägs av AiMRemoteApp, som skickar bindningen hit. En egen
+    /// @AppStorage här gjorde att skrivningen aldrig nådde preferredColorScheme.
+    @Binding var appearanceRaw: String
     @AppStorage("tr.remote.haptics") private var haptics = true
     @State private var tab: MainTab = .remote
     @State private var panel: Panel?
@@ -27,6 +30,7 @@ struct RemoteRoot: View {
                     SettingsScreen(
                         connection: connection,
                         haptics: $haptics,
+                        appearanceRaw: $appearanceRaw,
                         openPanel: { open($0) }
                     )
                 }
@@ -55,8 +59,12 @@ struct RemoteRoot: View {
                     )
             }
         }
-        // Appen följer telefonens ljusa eller mörka läge. Ingen temaknapp och
-        // ingen Utseende-rad: inget preferredColorScheme sätts här.
+        // Utseendet sätts här, i vyn som läser värdet. Låg det i App-kroppen
+        // räknades skrivningen aldrig om till ett nytt colorScheme.
+        .preferredColorScheme(AppearanceMode(rawValue: appearanceRaw)?.colorScheme)
+        // Byte av utseende: korsövergång 250 ms, direkt vid Reducera rörelse.
+        .animation(reduceMotion ? nil : .easeInOut(duration: TR.Motion.themeSwap),
+                   value: appearanceRaw)
         .onChange(of: connection.ready) { ready in
             if ready { TRHaptics.connected() }
         }
@@ -87,6 +95,8 @@ struct RemoteRoot: View {
             KeyboardPanel(connection: connection, onClose: close)
         case .help:
             HelpPanel(onClose: close)
+        case .appearance:
+            AppearancePanel(appearanceRaw: $appearanceRaw, onClose: close)
         }
     }
 

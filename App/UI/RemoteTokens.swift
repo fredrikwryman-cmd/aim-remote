@@ -1,6 +1,29 @@
 import SwiftUI
 import UIKit
 
+/// Utseendet appen ritar i. Standard är Mörkt: det är så appen är tänkt att
+/// se ut, och den som vill annat väljer det i Inställningar.
+enum AppearanceMode: String, CaseIterable, Identifiable {
+    case dark, light, system
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .dark: return "Mörkt"
+        case .light: return "Ljust"
+        case .system: return "Följ telefonen"
+        }
+    }
+    /// nil betyder att SwiftUI får följa telefonen.
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .dark: return .dark
+        case .light: return .light
+        case .system: return nil
+        }
+    }
+    static let standard = AppearanceMode.dark
+}
+
 extension Color {
     init(hex: UInt32, opacity: Double = 1) {
         self.init(
@@ -290,6 +313,8 @@ enum TR {
         static let sheetIn: Double = 0.28
         static let sheetOut: Double = 0.20
         static let tab: Double = 0.18
+        /// Korsövergång vid byte av utseende.
+        static let themeSwap: Double = 0.25
     }
 
     // MARK: - Typsnitt: SF Pro, systemets (sid 5)

@@ -1,11 +1,12 @@
 import SwiftUI
 
 // Inställningar, ritad efter facit sid 3 (ljust) och sid 4 (mörkt).
-// Ingen Utseende-rad: appen följer telefonens läge.
+// Utseende-raden ritas i samma stil som de övriga raderna på sidorna.
 @MainActor
 struct SettingsScreen: View {
     @ObservedObject var connection: TVConnection
     @Binding var haptics: Bool
+    @Binding var appearanceRaw: String
     var openPanel: (Panel) -> Void
 
     @Environment(\.colorScheme) private var scheme
@@ -30,6 +31,11 @@ struct SettingsScreen: View {
                                     TRDisplayIcon(width: 26, color: colors.textPrimary)
                                 )) {
                         openPanel(.connection)
+                    }
+                    TRDivider()
+                    SettingsRow(icon: "circle.lefthalf.filled", title: "Utseende",
+                                value: appearance.title) {
+                        openPanel(.appearance)
                     }
                     TRDivider()
                     SettingsRow(icon: "questionmark.circle", title: "Hjälp") {
@@ -60,6 +66,10 @@ struct SettingsScreen: View {
             }
             .padding(.horizontal, TR.Size.sidePadding)
         }
+    }
+
+    private var appearance: AppearanceMode {
+        AppearanceMode(rawValue: appearanceRaw) ?? .standard
     }
 
     // Kortet: grön appikon, namn och undertext. Ingen chevron i facit.
@@ -102,5 +112,65 @@ struct SettingsScreen: View {
         }
         .buttonStyle(TRPressStyle())
         .accessibilityLabel("Tech Rabbit Remote, Din TV. Din kontroll.")
+    }
+}
+
+// Utseende: Mörkt, Ljust och Följ telefonen, med bock vid valt läge. Raderna
+// har samma höjd och samma typografi som raderna i Inställningar.
+@MainActor
+struct AppearancePanel: View {
+    @Binding var appearanceRaw: String
+    var onClose: () -> Void
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private let order: [AppearanceMode] = [.dark, .light, .system]
+
+    var body: some View {
+        let colors = TR.Colors.of(scheme)
+        GlassSheet(title: "Utseende", top: 220, onClose: onClose) {
+            VStack(spacing: 0) {
+                ForEach(Array(order.enumerated()), id: \.element.id) { index, mode in
+                    if index > 0 { TRDivider() }
+                    Button {
+                        if reduceMotion {
+                            appearanceRaw = mode.rawValue
+                        } else {
+                            withAnimation(.easeInOut(duration: TR.Motion.themeSwap)) {
+                                appearanceRaw = mode.rawValue
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(mode.title)
+                                .font(TR.Font.body)
+                                .trLabelScaling()
+                                .foregroundStyle(colors.textPrimary)
+                            Spacer(minLength: 8)
+                            if appearanceRaw == mode.rawValue {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundStyle(colors.accentText)
+                            }
+                        }
+                        .padding(.horizontal, TR.Size.rowPadding)
+                        .frame(height: TR.Size.settingsRow)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(TRPressStyle())
+                    .accessibilityLabel(mode.title)
+                    .accessibilityAddTraits(appearanceRaw == mode.rawValue ? .isSelected : [])
+                }
+            }
+            .trCard()
+            .padding(.top, 8)
+
+            Text("Följ telefonen betyder att appen byter när iPhone byter mellan ljust och mörkt läge.")
+                .font(TR.Font.caption)
+                .foregroundStyle(colors.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 12)
+                .padding(.horizontal, 4)
+        }
     }
 }

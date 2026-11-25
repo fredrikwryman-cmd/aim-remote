@@ -6,10 +6,9 @@ import Foundation
 /// och läses aldrig tillbaka, så gränssnittet fastnar i startläget. Därför
 /// flyttas värdena in i den egna domänen en gång vid start, varefter
 /// argumentdomänen tas bort. Utan startargument görs ingenting.
-/// Temat är inte med här: appen följer telefonens ljusa eller mörka läge.
 enum LaunchSeed {
     private static let boolKeys = ["tr.remote.onboarded", "tr.remote.haptics"]
-    private static let stringKeys: [String] = []
+    private static let stringKeys = ["tr.remote.theme"]
 
     static func apply(
         defaults: UserDefaults = .standard,

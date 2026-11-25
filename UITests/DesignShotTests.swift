@@ -6,9 +6,10 @@ import UIKit
 // jämförelse mot facit i design/referenser/v2/.
 // Körs av .github/workflows/screenshots.yml.
 //
-// Appen följer telefonens läge, så temat sätts på simulatorn före körningen
-// med `xcrun simctl ui <udid> appearance light|dark`. Testlöparen följer
-// samma läge, så bilderna namnges efter det den själv ser.
+// Temat sätts på simulatorn före körningen med
+// `xcrun simctl ui <udid> appearance light|dark`. Testlöparen följer samma
+// läge, så bilderna namnges efter det den själv ser, och appen startas med
+// `-tr.remote.theme` satt till samma läge.
 final class DesignShotTests: XCTestCase {
 
     private var theme: String {
@@ -66,7 +67,10 @@ final class DesignShotTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = [
             "-tr.remote.onboarded", onboarded ? "YES" : "NO",
-            "-tr.remote.haptics", "YES"
+            "-tr.remote.haptics", "YES",
+            // Utseendet valjs numera i appen, och standard ar morkt. Bilderna
+            // ska visa samma lage som simulatorn, sa valet satts till det.
+            "-tr.remote.theme", theme
         ]
         app.launch()
         return app

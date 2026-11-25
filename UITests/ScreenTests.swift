@@ -2,11 +2,12 @@ import XCTest
 import UIKit
 
 final class ScreenTests: XCTestCase {
-    private func launch(onboarded: Bool = true) -> XCUIApplication {
+    private func launch(onboarded: Bool = true, theme: String = "dark") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-tr.remote.onboarded", onboarded ? "YES" : "NO",
-            "-tr.remote.haptics", "YES"
+            "-tr.remote.haptics", "YES",
+            "-tr.remote.theme", theme
         ]
         app.launch()
         return app
@@ -50,7 +51,7 @@ final class ScreenTests: XCTestCase {
         XCTAssertTrue(first(app, beginningWith: "TV och anslutning").exists)
         XCTAssertTrue(app.buttons["Hjälp"].exists)
         XCTAssertTrue(app.switches["Knappvibration"].exists)
-        XCTAssertFalse(first(app, beginningWith: "Utseende").exists)
+        XCTAssertTrue(first(app, beginningWith: "Utseende").exists)
         XCTAssertTrue(app.staticTexts["v0.1.0 · Testversion"].exists)
     }
 
@@ -76,14 +77,15 @@ final class ScreenTests: XCTestCase {
         app.buttons["Stäng"].tap()
     }
 
-    // Appen har ingen temaknapp langre: den foljer telefonens lage. Testet
-    // laser simulatorns utseende ur testloparens egen traitCollection och
-    // jamfor med fargen appen faktiskt malar i bakgrunden.
+    // Valet "Folj telefonen" ska ge samma lage som telefonen. Testet laser
+    // simulatorns utseende ur testloparens egen traitCollection och jamfor med
+    // fargen appen faktiskt malar i bakgrunden.
     func testAppFollowsSystemAppearance() {
-        let app = launch()
+        let app = launch(theme: "system")
         XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 60))
 
-        // Ingen temaknapp och inget Utseende-val finns kvar.
+        // Den gamla temaknappen pa fjarren finns inte kvar: valet gors i
+        // Installningar.
         XCTAssertFalse(app.buttons
             .matching(NSPredicate(format: "label BEGINSWITH %@", "Byt till"))
             .firstMatch.exists)
@@ -100,6 +102,33 @@ final class ScreenTests: XCTestCase {
             XCTAssertGreaterThan(luma, 0.65,
                                  "Systemet ar i ljust lage men appen ritar morkt (luma \(luma)).")
         }
+    }
+
+    // Valet Morkt ska ge morkt aven nar telefonen star i ljust lage.
+    func testDarkChoiceStaysDarkWhenSystemIsLight() {
+        let app = launch(theme: "dark")
+        XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 60))
+        guard let luma = backgroundLuma(of: app) else {
+            return XCTFail("Kunde inte lasa en bildpunkt ur skarmbilden.")
+        }
+        XCTAssertLessThan(luma, 0.35,
+                          "Valet Morkt ska rita morkt oavsett telefonens lage (luma \(luma)).")
+    }
+
+    // Utseende-panelen listar de tre lagena och visar vilket som ar valt.
+    func testAppearancePanelHasThreeModes() {
+        let app = launch(theme: "dark")
+        XCTAssertTrue(app.buttons["Inställningar"].waitForExistence(timeout: 60))
+        app.buttons["Inställningar"].tap()
+        first(app, beginningWith: "Utseende").tap()
+
+        XCTAssertTrue(app.staticTexts["Utseende"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Mörkt"].exists)
+        XCTAssertTrue(app.buttons["Ljust"].exists)
+        XCTAssertTrue(app.buttons["Följ telefonen"].exists)
+        XCTAssertTrue(app.buttons["Mörkt"].isSelected,
+                      "Morkt ar standard och ska vara markerat.")
+        app.buttons["Stäng"].tap()
     }
 
     /// Ljusheten i en punkt uppe till vanster, dar bara bakgrunden ligger.

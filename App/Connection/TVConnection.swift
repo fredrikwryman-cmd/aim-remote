@@ -5,6 +5,7 @@ import CryptoKit
 import Combine
 import AVFoundation
 import WidgetKit
+import UIKit
 import AiMCore
 
 @MainActor
@@ -83,8 +84,21 @@ final class TVConnection: ObservableObject {
     private var voiceID: UInt64?
     private var audio = AudioCapture()
     private var audioBytes = Data()
+    /// Startar om anslutningen av sig sjalv. Skapas vid forsta anvandningen,
+    /// eftersom den behover en fardig TVConnection att peka pa.
+    private lazy var reconnector = ReconnectCoordinator(target: self)
+    /// Den korta frist iOS ger nar appen lamnar skarmen.
+    private var backgroundHold: UIBackgroundTaskIdentifier = .invalid
+    /// Sant nar forsoket startades av appen sjalv. Da skrivs felet bara i
+    /// statusraden; en ruta per misslyckat omforsok vore outhardligt.
+    private var automatic = false
 
     func connect(pair: Bool = false) {
+        connect(pair: pair, automatic: false)
+    }
+
+    private func connect(pair: Bool, automatic: Bool) {
+        self.automatic = automatic
         let clean = host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !clean.isEmpty, clean.count <= 253,
               clean.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
@@ -242,11 +256,52 @@ final class TVConnection: ObservableObject {
         if let active = store.active {
             host = active.host
             tvName = active.name
-            connect()
+            connect(pair: false, automatic: true)
             return
         }
         guard !host.isEmpty else { return }
-        if (try? TrustStore.read(host: host)) != nil { connect() }
+        if (try? TrustStore.read(host: host)) != nil {
+            connect(pair: false, automatic: true)
+        }
+    }
+
+    // MARK: - Automatisk aterupptagning
+
+    /// Appen blev aktiv: anslut till aktiv TV utan att anvandaren trycker.
+    func sceneBecameActive() {
+        endBackgroundHold()
+        reconnector.appBecameActive()
+    }
+
+    /// Appen lamnade skarmen. Anslutningen behalls den stund iOS tillater och
+    /// stangs sedan snyggt. Inga omforsok laggs pa ko medan appen ar borta.
+    func sceneLeftForeground() {
+        reconnector.appLeftForeground()
+        beginBackgroundHold()
+    }
+
+    /// Den vanliga korta fristen, samma som varje app far. Inget bakgrundslage
+    /// i Info.plist: ingen falsk ljud-, VoIP- eller platsbakgrund.
+    private func beginBackgroundHold() {
+        // Finns ingen anslutning att behalla behovs ingen frist.
+        guard ready || busy else { disconnect(); return }
+        guard backgroundHold == .invalid else { return }
+        backgroundHold = UIApplication.shared.beginBackgroundTask(withName: "tr.remote.keepalive") {
+            [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.disconnect()
+                self.endBackgroundHold()
+            }
+        }
+        // Nekas fristen stangs anslutningen genast i stallet.
+        if backgroundHold == .invalid { disconnect() }
+    }
+
+    private func endBackgroundHold() {
+        guard backgroundHold != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(backgroundHold)
+        backgroundHold = .invalid
     }
     func disconnect() {
         endVoice()
@@ -258,7 +313,16 @@ final class TVConnection: ObservableObject {
         status = "Inte ansluten"
     }
     private func fail(_ message: String) {
-        disconnect(); status = message; notice = message
+        let wasAutomatic = automatic
+        disconnect()
+        status = message
+        // Ett automatiskt forsok skriver inte en ruta: det kommer ett nytt
+        // forsok strax, och anvandaren har inte bett om nagot.
+        if !wasAutomatic { notice = message }
+        automatic = wasAutomatic
+        // Ett annat certifikat pa en kand adress ar inget att forsoka igen
+        // med: det kraver att anvandaren parkopplar om.
+        if !needsRepair { reconnector.connectionDropped() }
     }
     private func armDeadline(seconds: Double) {
         deadline?.cancel()
@@ -327,6 +391,8 @@ final class TVConnection: ObservableObject {
                 switch event {
                 case .started(let on):
                     ready = true; busy = false; needsRepair = false
+                    automatic = false
+                    reconnector.connected()
                     status = on ? "Ansluten" : "Ansluten · TV i standby"
                     if let id = store.tv(host: host)?.id {
                         store.touch(id: id)
@@ -398,3 +464,16 @@ final class TVConnection: ObservableObject {
     }
 }
 
+/// Det aterkopplingen behover veta om anslutningen. Ingen pinning och ingen
+/// sakerhetslogik ligger har: beginConnecting gar genom samma connect() som
+/// forut, med samma krav pa ett pinnat certifikat.
+extension TVConnection: ReconnectTarget {
+    var isConnected: Bool { ready }
+    var isConnecting: Bool { busy }
+    var hasActiveTV: Bool {
+        if savedTVs.contains(where: { $0.id == activeTVID }) { return true }
+        guard !host.isEmpty else { return false }
+        return (try? TrustStore.read(host: host)) != nil
+    }
+    func beginConnecting() { reconnectIfSaved() }
+}
