@@ -75,6 +75,15 @@ appen.
 | Skärmbilder | `appstore/skarmbilder/1206x2622/` (6,3 tum, krävs) och `appstore/skarmbilder/1320x2868/` (6,9 tum, frivilligt). Tio bilder per storlek: Fjärr, Välj TV, Sifferknappar, Tangentbord och Inställningar, först mörkt och sedan ljust | KLART |
 | Appförhandsvisning (video) | Finns inte, och Apple kräver den inte | Behövs inte |
 
+**En sak att titta på innan du laddar upp.** Appen visar `TCL 43P635` som
+TV-namn innan någon TV är vald, och det syns i bild 01 och 06. Beskrivningen
+säger att appen inte kommer från TCL, så i värsta fall läser en granskare
+modellnamnet i bilden som att appen utger sig för att vara TCL:s. Risken är
+liten men den finns. Vill du bort från den, byt standardnamnet i
+`App/Connection/TVConnection.swift` till något neutralt, till exempel
+`Min TV`, och kör skärmbildsflödet igen. Det ändrar appens utseende, och
+därför har jag inte gjort det på eget bevåg.
+
 Bilderna är raka skärmbilder utan ramar och utan pålagd text, tagna av
 `.github/workflows/butiksbilder.yml`. Vill du ta om dem efter en ändring i
 appen: **Actions → App Store screenshots → Run workflow**, och hämta
