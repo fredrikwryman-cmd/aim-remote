@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Integritetsmanifest for widgeten TechRabbitWidget.
+
+  Widgeten samlar inte in nagon data. Den laser TV-listan ur app
+  group-domanen som appen skriver (App/Connection/SharedStore.swift) och
+  skickar kommandon till TV:n pa det lokala natverket.
+
+  AC6B.1 ar skalet for en apptillaggsdel som laser UserDefaults i app
+  group-domanen hos appen den hor till.
+-->
+<plist version="1.0">
+<dict>
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array/>
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>AC6B.1</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

@@ -9,7 +9,10 @@ Skriver simulatorns UDID pa stdout och vad som hittades pa stderr.
 Avslutskoder: 0 hittad eller skapad, 3 ingen enhetstyp finns (hoppa over
 storleken), 1 annat fel.
 
-Anvandning: select_shot_simulator.py 390x844 | 375x667
+Punktstorlekar anvands for designbilderna (390x844, 375x667) och
+pixelstorlekar for butiksbilderna (1206x2622, 1320x2868).
+
+Anvandning: select_shot_simulator.py 390x844 | 375x667 | 1206x2622 | 1320x2868
 """
 import json
 import subprocess
@@ -21,12 +24,19 @@ MODELS = {
     # macos-26 har iPhone 16e, 17, 17 Pro, 17 Pro Max, 17e och Air.
     "390x844": ["iPhone 16e", "iPhone 14", "iPhone 13", "iPhone 12", "iPhone 16", "iPhone 15"],
     "375x667": ["iPhone SE (3rd generation)", "iPhone SE (2nd generation)", "iPhone 8", "iPhone SE"],
+    # Butiksbilderna. App Store kraver 6,3-tums-klassen (1206x2622 eller
+    # 1179x2556); 6,9 tum (1320x2868) ar frivilligt. Modellerna nedan ger
+    # exakt de pixelmatten: 402x874 respektive 440x956 punkter i 3x.
+    "1206x2622": ["iPhone 17 Pro", "iPhone 17", "iPhone 16 Pro"],
+    "1320x2868": ["iPhone 17 Pro Max", "iPhone 16 Pro Max"],
 }
 
 # Enhetstyper att skapa av, om ingen av modellerna ovan redan finns.
 DEVICE_TYPES = {
     "390x844": ["iPhone-16e", "iPhone-14", "iPhone-13", "iPhone-12"],
     "375x667": ["iPhone-SE-3rd-generation", "iPhone-SE-2nd-generation", "iPhone-8"],
+    "1206x2622": ["iPhone-17-Pro", "iPhone-17", "iPhone-16-Pro"],
+    "1320x2868": ["iPhone-17-Pro-Max", "iPhone-16-Pro-Max"],
 }
 
 PREFIX = "com.apple.CoreSimulator.SimDeviceType."
@@ -92,7 +102,7 @@ def create(size: str) -> str:
 
 def main() -> int:
     if len(sys.argv) != 2 or sys.argv[1] not in MODELS:
-        print("Anvandning: select_shot_simulator.py 390x844 | 375x667", file=sys.stderr)
+        print("Anvandning: select_shot_simulator.py %s" % " | ".join(MODELS), file=sys.stderr)
         return 2
     size = sys.argv[1]
 

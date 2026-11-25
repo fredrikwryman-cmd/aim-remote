@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Integritetsmanifest for Tech Rabbit Remote (appen).
+
+  Appen samlar inte in nagon data. Allt den sparar ligger pa telefonen:
+  TV:ns namn och adress i UserDefaults (app group) och klientnyckeln i
+  nyckelringen. Ingenting lamnar telefonen utom kommandona till TV:n pa
+  det lokala natverket. Darfor ar NSPrivacyCollectedDataTypes tom och
+  NSPrivacyTracking falskt.
+
+  API:erna nedan ar de av Apples "required reason"-API:er som appen
+  faktiskt anvander:
+    - UserDefaults: CA92.1, laser och skriver bara appens egna varden
+      och app group-varden som appen sjalv ager.
+    - System boot time: 35F9.1, ProcessInfo.systemUptime i
+      App/UI/Motion.swift for att mata tiden mellan tva haptikpulser.
+-->
+<plist version="1.0">
+<dict>
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array/>
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>CA92.1</string>
+            </array>
+        </dict>
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>35F9.1</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

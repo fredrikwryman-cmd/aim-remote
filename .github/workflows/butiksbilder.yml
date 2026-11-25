@@ -1,0 +1,187 @@
+name: App Store screenshots
+
+# Tar butiksbilderna till App Store: Fjarr, Valj TV, Sifferknappar,
+# Tangentbord och Installningar, i morkt lage (appens standard) och ljust.
+# Raka skarmbilder utan ramar och utan pålagd text.
+#
+# Storlekarna ar de App Store Connect begar for iPhone:
+#   1206x2622  6,3 tum, "iPhone with Dynamic Island (medium display)" - kravs
+#   1320x2868  6,9 tum - frivilligt, men laddas upp sa stora skarmar far
+#              bilder i ratt matt i stallet for skalade
+#
+# Bilderna kommer ut som artifact TechRabbitRemote-appstore-<storlek> och
+# laggs i appstore/skarmbilder/<storlek>/.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shots:
+    runs-on: macos-26
+    timeout-minutes: 60
+    # 6,9 tum ar frivilligt och far inte falla hela korningen.
+    continue-on-error: ${{ matrix.size == '1320x2868' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        size: ["1206x2622", "1320x2868"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          APP=$(python3 scripts/select_xcode.py)
+          sudo xcode-select -s "$APP/Contents/Developer"
+          echo "DEVELOPER_DIR=$APP/Contents/Developer" >> "$GITHUB_ENV"
+          xcodebuild -version
+
+      - name: Select simulator
+        run: |
+          set +e
+          UDID=$(python3 scripts/select_shot_simulator.py "${{ matrix.size }}")
+          STATUS=$?
+          set -e
+          if [ "$STATUS" = "3" ]; then
+            echo "::warning::Ingen simulator med ${{ matrix.size }} finns pa runnern."
+            echo "SKIP_SIZE=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          if [ "$STATUS" != "0" ] || [ -z "$UDID" ]; then
+            echo "Kunde inte valja simulator (status $STATUS)." >&2
+            exit 1
+          fi
+          echo "Simulator: $UDID"
+          echo "SIMULATOR_ID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Generate Xcode project
+        if: env.SKIP_SIZE != '1'
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Boot simulator
+        if: env.SKIP_SIZE != '1'
+        run: |
+          xcrun simctl boot "$SIMULATOR_ID" || true
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+          # Statusfaltet ska se ut som pa en vanlig telefon i butiksbilderna.
+          xcrun simctl status_bar "$SIMULATOR_ID" override \
+            --time "09:41" --cellularMode active --cellularBars 4 \
+            --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100 || true
+
+      - name: Build for testing
+        if: env.SKIP_SIZE != '1'
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project AiMRemote.xcodeproj \
+            -scheme AiMRemote \
+            -destination "id=$SIMULATOR_ID" \
+            -derivedDataPath "$PWD/build/dd" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Warm up the app once
+        if: env.SKIP_SIZE != '1'
+        continue-on-error: true
+        run: |
+          APP=$(find "$PWD/build/dd/Build/Products" -maxdepth 2 -name "AiMRemote.app" -type d | head -1)
+          if [ -z "$APP" ]; then
+            echo "::notice::Hittade ingen byggd app att vara upp med."
+            exit 0
+          fi
+          xcrun simctl install "$SIMULATOR_ID" "$APP"
+          xcrun simctl launch "$SIMULATOR_ID" se.aim.remote || true
+          sleep 8
+          xcrun simctl terminate "$SIMULATOR_ID" se.aim.remote || true
+
+      # Morkt forst: det ar appens standardlage.
+      - name: Shots in dark mode
+        if: env.SKIP_SIZE != '1'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcrun simctl ui "$SIMULATOR_ID" appearance dark
+          sleep 3
+          xcodebuild test-without-building \
+            -project AiMRemote.xcodeproj \
+            -scheme AiMRemote \
+            -destination "id=$SIMULATOR_ID" \
+            -derivedDataPath "$PWD/build/dd" \
+            -resultBundlePath "$PWD/build/store-dark-${{ matrix.size }}.xcresult" \
+            -only-testing:AiMRemoteUITests/DesignShotTests/testShots \
+            -retry-tests-on-failure \
+            -test-iterations 3 \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Shots in light mode
+        if: env.SKIP_SIZE != '1'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcrun simctl ui "$SIMULATOR_ID" appearance light
+          sleep 3
+          xcodebuild test-without-building \
+            -project AiMRemote.xcodeproj \
+            -scheme AiMRemote \
+            -destination "id=$SIMULATOR_ID" \
+            -derivedDataPath "$PWD/build/dd" \
+            -resultBundlePath "$PWD/build/store-light-${{ matrix.size }}.xcresult" \
+            -only-testing:AiMRemoteUITests/DesignShotTests/testShots \
+            -retry-tests-on-failure \
+            -test-iterations 3 \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Pick the store screenshots
+        if: always() && env.SKIP_SIZE != '1'
+        run: |
+          RAW="build/raw/${{ matrix.size }}"
+          OUT="appstore/skarmbilder/${{ matrix.size }}"
+          for MODE in dark light; do
+            BUNDLE="build/store-$MODE-${{ matrix.size }}.xcresult"
+            [ -d "$BUNDLE" ] || continue
+            python3 scripts/export_screenshots.py "$BUNDLE" "$RAW" "${{ matrix.size }}"
+          done
+          set +e
+          python3 scripts/pick_store_screenshots.py "$RAW" "$OUT" "${{ matrix.size }}"
+          PICKED=$?
+          set -e
+          COUNT=$(ls -1 "$OUT"/*.png 2>/dev/null | wc -l | tr -d ' ')
+          echo "Butiksbilder: $COUNT"
+          ls -la "$OUT" || true
+          if [ "$COUNT" != "0" ]; then
+            echo "HAS_SHOTS=1" >> "$GITHUB_ENV"
+          fi
+          if [ "$PICKED" != "0" ]; then
+            echo "::warning::Alla tio bilderna kom inte ut for ${{ matrix.size }}."
+          fi
+
+      - name: Upload store screenshots
+        if: always() && env.HAS_SHOTS == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TechRabbitRemote-appstore-${{ matrix.size }}
+          path: appstore/skarmbilder/${{ matrix.size }}
+          if-no-files-found: ignore
+
+      - name: Keep the result bundles when images are missing
+        if: always() && env.SKIP_SIZE != '1' && env.HAS_SHOTS != '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TechRabbitRemote-appstore-xcresult-${{ matrix.size }}
+          path: |
+            build/store-dark-${{ matrix.size }}.xcresult
+            build/store-light-${{ matrix.size }}.xcresult
+          if-no-files-found: ignore
+
+      - name: Report result
+        if: always() && env.SKIP_SIZE != '1'
+        run: |
+          if [ "$HAS_SHOTS" = "1" ]; then
+            echo "Butiksbilder for ${{ matrix.size }} finns som artifact."
+          else
+            echo "::warning::Inga butiksbilder for ${{ matrix.size }}."
+            exit 1
+          fi
