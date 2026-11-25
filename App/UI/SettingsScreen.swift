@@ -76,7 +76,7 @@ struct SettingsScreen: View {
                 .trCard()
                 .padding(.top, 22)
 
-                Text("v0.1.0 · Testversion")
+                Text(AppVersion.label)
                     .font(TR.Font.caption)
                     .trLabelScaling()
                     .foregroundStyle(colors.textSecondary)

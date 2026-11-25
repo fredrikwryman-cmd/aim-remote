@@ -73,7 +73,10 @@ final class ScreenTests: XCTestCase {
         XCTAssertTrue(app.buttons["Hjälp"].exists)
         XCTAssertTrue(app.switches["Knappvibration"].exists)
         XCTAssertTrue(first(app, beginningWith: "Utseende").exists)
-        XCTAssertTrue(app.staticTexts["v0.1.0 · Testversion"].exists)
+        // Versionsraden laser bundlen. Numret star hardkodat har med flit:
+        // faller testet har nagon andrat MARKETING_VERSION i project.yml utan
+        // att mena det.
+        XCTAssertTrue(app.staticTexts["Version 1.0.0"].exists)
     }
 
     // R04 Valj TV oppnas fran TV-ikonen och stangs med X.

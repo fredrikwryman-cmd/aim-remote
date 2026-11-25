@@ -697,7 +697,7 @@ struct HelpPanel: View {
             "Kanal- och medieknappar fungerar där TV:n eller den öppna appen stöder dem. Av/på kan inte garanteras när TV:ns nätverk är avstängt i standby."
         ]),
         ("Om Tech Rabbit Remote", [
-            "Testversion 0.1.0. Utvecklad för din TCL 43P635. Funktionerna behöver verifieras på den riktiga TV:n.",
+            "Version \(AppVersion.marketing). Utvecklad för din TCL 43P635. Funktionerna behöver verifieras på den riktiga TV:n.",
             "Anslutningen går direkt till TV:n på ditt lokala nätverk. Ingen analys, reklam eller prenumeration. Mikrofonljud skickas till TV:n bara under aktiv röstinmatning och sparas inte av appen. TV:ns röstassistent kan använda sin leverantörs onlinetjänster.",
             "Fristående app, inte en officiell TCL-produkt."
         ])
