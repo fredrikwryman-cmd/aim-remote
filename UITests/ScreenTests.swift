@@ -165,4 +165,108 @@ final class ScreenTests: XCTestCase {
     private func first(_ app: XCUIApplication, beginningWith prefix: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
     }
+
+    /// Vantar tills elementet ar borta. waitForExistence svarar direkt nar
+    /// elementet finns, sa den kan inte anvandas at andra hallet.
+    private func waitForDisappearance(_ element: XCUIElement,
+                                      timeout: TimeInterval = 8) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if !element.exists { return true }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        return !element.exists
+    }
+}
+
+// MARK: - Beteendet ur direktiv 23
+
+final class BehaviourTests: XCTestCase {
+    private func launch() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-tr.remote.onboarded", "YES",
+            "-tr.remote.haptics", "YES",
+            "-tr.remote.theme", "dark"
+        ]
+        app.launch()
+        return app
+    }
+
+    // Punkt 8 och 10: panelen stangs bade med stangknappen och med ett
+    // nedsvep, och nedsvepet far inte blockeras av animationen.
+    func testPanelClosesWithTheCloseButtonAndWithADragDown() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["Välj TV"].waitForExistence(timeout: 60))
+
+        app.buttons["Välj TV"].tap()
+        let title = app.staticTexts["Välj TV"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        app.buttons["Stäng"].tap()
+        XCTAssertTrue(waitForDisappearance(title), "panelen stangdes inte med X")
+
+        app.buttons["Välj TV"].tap()
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        let start = title.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let end = start.withOffset(CGVector(dx: 0, dy: 420))
+        start.press(forDuration: 0.05, thenDragTo: end)
+        XCTAssertTrue(waitForDisappearance(title), "panelen stangdes inte med nedsvep")
+        XCTAssertTrue(app.buttons["Fjärr"].waitForExistence(timeout: 10))
+    }
+
+    // Punkt 14: Glom TV kraver bekraftelse, och konsekvensen star i klartext.
+    func testForgetAsksForConfirmationFirst() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["Inställningar"].waitForExistence(timeout: 60))
+        app.buttons["Inställningar"].tap()
+
+        let row = app.buttons
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "TV och anslutning"))
+            .firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        XCTAssertTrue(app.staticTexts["TV och anslutning"].waitForExistence(timeout: 10))
+
+        let forget = app.buttons
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Glöm "))
+            .firstMatch
+        XCTAssertTrue(forget.waitForExistence(timeout: 10))
+        for _ in 0..<4 where !forget.isHittable {
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        forget.tap()
+
+        let consequence = app.staticTexts[
+            "Du måste skriva in koden från TV:n igen för att ansluta."]
+        XCTAssertTrue(consequence.waitForExistence(timeout: 10),
+                      "bekraftelsearket saknade konsekvensen i klartext")
+        XCTAssertTrue(app.buttons["Avbryt"].exists, "arket saknade Avbryt")
+        app.buttons["Avbryt"].tap()
+        XCTAssertTrue(app.staticTexts["TV och anslutning"].waitForExistence(timeout: 10))
+    }
+
+    // Punkt 11 och 12: skelett medan sokningen pagar, sedan tomt lage med
+    // forklaring och knappen Sok igen.
+    func testChooseTVShowsTheEmptyStateWhenNothingIsFound() {
+        let app = launch()
+        XCTAssertTrue(app.buttons["Välj TV"].waitForExistence(timeout: 60))
+        app.buttons["Välj TV"].tap()
+        XCTAssertTrue(app.staticTexts["Välj TV"].waitForExistence(timeout: 10))
+
+        let explanation = app.staticTexts[
+            "Ingen TV hittades. Kontrollera att TV:n är på och på samma wifi."]
+        XCTAssertTrue(explanation.waitForExistence(timeout: 30),
+                      "tomt lage visades inte i Valj TV")
+        XCTAssertTrue(app.buttons["Sök igen"].exists, "tomt lage saknade Sok igen")
+    }
+
+    private func waitForDisappearance(_ element: XCUIElement,
+                                      timeout: TimeInterval = 8) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if !element.exists { return true }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        return !element.exists
+    }
 }

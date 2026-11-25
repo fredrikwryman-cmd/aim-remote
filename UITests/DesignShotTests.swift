@@ -33,7 +33,11 @@ final class DesignShotTests: XCTestCase {
         // Fjärr (facit sid 1 ljust, sid 2 mörkt)
         shoot(app, "R02_fjarr_\(theme)")
 
-        openPanel(app, tap: app.buttons["Välj TV"], title: "Välj TV", name: "R04_valj-tv_\(theme)")
+        // Valj TV visar skelett medan sokningen pagar. Bilden ska visa det
+        // tomma laget, sa den tas nar forklaringen kommit fram.
+        openPanel(app, tap: app.buttons["Välj TV"], title: "Välj TV",
+                  name: "R04_valj-tv_\(theme)",
+                  settleOn: "Ingen TV hittades. Kontrollera att TV:n är på och på samma wifi.")
         openPanel(app, tap: app.buttons["Sifferknappar"], title: "Sifferknappar", name: "P05_123_\(theme)")
         openPanel(app, tap: app.buttons["Öppna tangentbord"], title: "Tangentbord", name: "P06_tangentbord_\(theme)")
 
@@ -49,11 +53,16 @@ final class DesignShotTests: XCTestCase {
     }
 
     private func openPanel(_ app: XCUIApplication, tap opener: XCUIElement,
-                           title: String, name: String) {
+                           title: String, name: String,
+                           settleOn: String? = nil) {
         XCTAssertTrue(opener.waitForExistence(timeout: 10), "hittade inte knappen till \(title)")
         opener.tap()
         XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 10),
                       "panelen \(title) öppnades inte")
+        if let settleOn {
+            XCTAssertTrue(app.staticTexts[settleOn].waitForExistence(timeout: 30),
+                          "panelen \(title) kom aldrig i vila")
+        }
         shoot(app, name)
         let close = app.buttons["Stäng"].firstMatch
         if close.waitForExistence(timeout: 5) { close.tap() }
@@ -77,6 +86,9 @@ final class DesignShotTests: XCTestCase {
     }
 
     private func shoot(_ app: XCUIApplication, _ name: String) {
+        // Entren och panelernas ordning ar rorelse. Bilderna ska visa laget
+        // i vila, sa de tas nar rorelsen hunnit lagga sig.
+        Thread.sleep(forTimeInterval: 0.8)
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways

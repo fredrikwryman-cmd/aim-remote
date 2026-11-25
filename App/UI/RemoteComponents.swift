@@ -34,9 +34,9 @@ struct TRKey<Label: View>: View {
             )
             .overlay(shape.stroke(colors.line, lineWidth: 1))
             .shadow(color: colors.keyShadow.opacity(colors.keyShadowOpacity), radius: 6, y: 4)
-            .scaleEffect(pressed && !reduceMotion ? TR.State.pressedScale : 1)
+            .scaleEffect(pressed && !reduceMotion ? TRMotion.pressScale : 1)
             .opacity(opacity)
-            .animation(.easeOut(duration: TR.Motion.press), value: pressed)
+            .animation(TRMotion.spring(reduceMotion, TRMotion.snappy), value: pressed)
             .contentShape(shape)
             .gesture(press)
             .accessibilityAddTraits(.isButton)
@@ -114,9 +114,10 @@ struct TRPressStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? TR.State.pressedScale : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? TRMotion.pressScale : 1)
             .opacity(configuration.isPressed ? TR.State.pressedOpacity : 1)
-            .animation(.easeOut(duration: TR.Motion.press), value: configuration.isPressed)
+            .animation(TRMotion.spring(reduceMotion, TRMotion.snappy),
+                       value: configuration.isPressed)
     }
 }
 
@@ -216,8 +217,8 @@ struct TRRepeatZone<Content: View>: View {
         content
             .contentShape(Rectangle())
             .opacity(pressed ? TR.State.pressedOpacity : 1)
-            .scaleEffect(pressed && !reduceMotion ? TR.State.pressedScale : 1)
-            .animation(.easeOut(duration: TR.Motion.press), value: pressed)
+            .scaleEffect(pressed && !reduceMotion ? TRMotion.pressScale : 1)
+            .animation(TRMotion.spring(reduceMotion, TRMotion.snappy), value: pressed)
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in
@@ -324,14 +325,17 @@ struct FloatingTabBar: View {
         let colors = TR.Colors.of(scheme)
         let selected = selection == tab
         return Button {
-            withAnimation(.easeInOut(duration: TR.Motion.tab)) { selection = tab }
+            guard selection != tab else { return }
+            TRHaptics.selection()
+            withAnimation(.easeInOut(duration: TRMotion.swap)) { selection = tab }
         } label: {
             VStack(spacing: 4) {
-                Image(systemName: selected ? selectedIcon : icon)
-                    .font(.system(size: 22, weight: .regular))
+                TabIcon(name: selected ? selectedIcon : icon, selected: selected)
                 Text(title)
                     .font(TR.Font.caption)
                     .trLabelScaling()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             .foregroundStyle(selected ? colors.accentText : colors.textSecondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -343,7 +347,7 @@ struct FloatingTabBar: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TRPressStyle())
         .accessibilityLabel(title)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
@@ -355,6 +359,7 @@ struct TRStatusPill: View {
     var height: CGFloat = 33
     var action: () -> Void
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let colors = TR.Colors.of(scheme)
@@ -363,7 +368,11 @@ struct TRStatusPill: View {
             Text(title)
                 .font(TR.Font.button)
                 .trLabelScaling()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .foregroundStyle(colors.accentText)
+                .id(title)
+                .transition(.opacity)
                 .padding(.horizontal, 18)
                 .frame(height: height)
                 .frame(minWidth: TR.Size.hitTargetMin)
@@ -376,6 +385,7 @@ struct TRStatusPill: View {
                 .contentShape(shape)
         }
         .buttonStyle(TRPressStyle())
+        .animation(TRMotion.spring(reduceMotion, TRMotion.smooth), value: title)
     }
 }
 
@@ -401,5 +411,153 @@ struct TRDisplayIcon: View {
         }
         .frame(width: width, height: screen + width * 0.10 + stroke)
         .accessibilityHidden(true)
+    }
+}
+
+// Flikens ikon studsar lätt när fliken väljs (punkt 15). Vid reducerad
+// rörelse står den stilla.
+private struct TabIcon: View {
+    var name: String
+    var selected: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var scale: CGFloat = 1
+
+    var body: some View {
+        Image(systemName: name)
+            .font(.system(size: 22, weight: .regular))
+            .scaleEffect(scale)
+            .onChange(of: selected) { on in
+                guard on, !reduceMotion else { return }
+                withAnimation(.easeOut(duration: TRMotion.tap)) { scale = 1.16 }
+                withAnimation(TRMotion.hero.delay(TRMotion.tap)) { scale = 1 }
+            }
+    }
+}
+
+// Laddningsskelett i stället för snurra (punkt 11). Raden har samma form och
+// höjd som en TV-rad och skimrar lugnt tills de första TV:arna dyker upp.
+struct TRSkeletonRow: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shift: CGFloat = -1
+
+    var body: some View {
+        let colors = TR.Colors.of(scheme)
+        let shape = RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous)
+        HStack(spacing: 14) {
+            Circle()
+                .fill(colors.textSecondary.opacity(0.18))
+                .frame(width: 26, height: 26)
+            VStack(alignment: .leading, spacing: 7) {
+                bar(width: 148, height: 12)
+                bar(width: 86, height: 10)
+            }
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: TR.Size.sheetRow)
+        .background(shape.fill(colors.textSecondary.opacity(0.07)))
+        .overlay {
+            if !reduceMotion {
+                LinearGradient(
+                    colors: [.clear, colors.textPrimary.opacity(0.07), .clear],
+                    startPoint: .leading, endPoint: .trailing
+                )
+                .frame(width: 180)
+                .offset(x: shift * 260)
+            }
+        }
+        .clipShape(shape)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: false)) {
+                shift = 1
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func bar(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+            .fill(TR.Colors.of(scheme).textSecondary.opacity(0.18))
+            .frame(width: width, height: height)
+    }
+}
+
+// Bekräftelseark före en oåterkallelig handling (punkt 14). Konsekvensen
+// står i klartext, och den oåterkalleliga knappen ligger sist och markerad.
+// Haptik warning när arket öppnas.
+@MainActor
+struct TRConfirmSheet: View {
+    var title: String
+    var message: String
+    var confirmTitle: String
+    var onConfirm: () -> Void
+    var onCancel: () -> Void
+
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let colors = TR.Colors.of(scheme)
+        let shape = RoundedRectangle(cornerRadius: TR.Radius.sheet, style: .continuous)
+        ZStack(alignment: .bottom) {
+            colors.scrim
+                .ignoresSafeArea()
+                .onTapGesture { onCancel() }
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text(title)
+                    .font(TR.Font.deviceTitle)
+                    .trLabelScaling()
+                    .foregroundStyle(colors.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(message)
+                    .font(TR.Font.body)
+                    .foregroundStyle(colors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button(action: onCancel) {
+                    Text("Avbryt")
+                        .font(TR.Font.button)
+                        .foregroundStyle(colors.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: TR.Size.primaryButton)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(TRPressStyle())
+                .padding(.top, 2)
+
+                // Sist och markerad.
+                Button(action: onConfirm) {
+                    Text(confirmTitle)
+                        .font(TR.Font.button)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: TR.Size.primaryButton)
+                        .background(
+                            colors.danger,
+                            in: RoundedRectangle(cornerRadius: TR.Radius.primaryButton,
+                                                 style: .continuous)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(TRPressStyle())
+                .accessibilityLabel(confirmTitle)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                LinearGradient(colors: [colors.sheetTop, colors.sheetBottom],
+                               startPoint: .top, endPoint: .bottom),
+                in: shape
+            )
+            .overlay(shape.stroke(.white.opacity(0.12), lineWidth: 1))
+            .shadow(color: .black.opacity(0.5), radius: 30, y: 15)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 14)
+            .accessibilityAddTraits(.isModal)
+        }
+        .onAppear { TRHaptics.warning() }
     }
 }

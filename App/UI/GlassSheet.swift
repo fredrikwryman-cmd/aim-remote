@@ -12,7 +12,15 @@ struct GlassSheet<Content: View>: View {
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Panelen växer ur knappen som öppnade den (punkt 7).
+    @Environment(\.panelOrigin) private var origin
     @State private var drag: CGFloat = 0
+    @State private var sheetHeight: CGFloat = 0
+    /// Delarna kommer in i ordning och går ut i omvänd ordning (punkt 9).
+    @State private var shown = false
+
+    /// Halva vägen ned. Innan dess fjädrar panelen tillbaka.
+    private var closeThreshold: CGFloat { max(sheetHeight / 2, 120) }
 
     var body: some View {
         let colors = TR.Colors.of(scheme)
@@ -26,8 +34,11 @@ struct GlassSheet<Content: View>: View {
                 .onTapGesture { onClose() }
 
             VStack(spacing: 0) {
-                header
-                content
+                if shown {
+                    header
+                    content
+                        .transition(trStageTransition(1, of: 3, reduceMotion: reduceMotion))
+                }
             }
             .padding(.top, 18)
             .padding(.horizontal, 14)
@@ -43,23 +54,46 @@ struct GlassSheet<Content: View>: View {
                     .stroke(.white.opacity(0.12), lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.5), radius: 30, y: 15)
+            .scaleEffect(reduceMotion || shown ? 1 : 0.92, anchor: origin)
+            .opacity(shown ? 1 : 0)
             .padding(.horizontal, 14)
             // top är mätt från skärmens överkant i SPEC. Bladet ligger nu
             // innanför säkra ytan, så statusfältet räknas bort en gång.
             .padding(.top, max(top - 44, 12))
-            .offset(y: max(0, drag))
+            .offset(y: drag)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: SheetHeightKey.self, value: proxy.size.height)
+                }
+            )
+            .onPreferenceChange(SheetHeightKey.self) { sheetHeight = $0 }
             .gesture(
                 DragGesture()
-                    .onChanged { value in drag = value.translation.height }
+                    .onChanged { value in
+                        // Nedåt följer fingret, uppåt tar emot.
+                        let dy = value.translation.height
+                        drag = dy > 0 ? dy : dy / 4
+                    }
                     .onEnded { value in
-                        if value.translation.height > 80 {
+                        if value.translation.height > closeThreshold {
+                            TRHaptics.soft()
                             onClose()
                         } else {
-                            withAnimation(.easeOut(duration: TR.Motion.sheetOut)) { drag = 0 }
+                            TRHaptics.soft()
+                            withAnimation(TRMotion.spring(reduceMotion, TRMotion.smooth)) {
+                                drag = 0
+                            }
                         }
                     }
             )
             .accessibilityAddTraits(.isModal)
+            .onAppear {
+                if reduceMotion {
+                    shown = true
+                } else {
+                    withAnimation(TRMotion.smooth) { shown = true }
+                }
+            }
         }
     }
 
@@ -69,7 +103,10 @@ struct GlassSheet<Content: View>: View {
             Text(title)
                 .font(TR.Font.deviceTitle)
                 .trLabelScaling()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .foregroundStyle(colors.textPrimary)
+                .transition(trStageTransition(0, of: 3, reduceMotion: reduceMotion))
             HStack {
                 Spacer()
                 Button(action: onClose) {
@@ -81,9 +118,18 @@ struct GlassSheet<Content: View>: View {
                 }
                 .buttonStyle(TRPressStyle())
                 .accessibilityLabel("Stäng")
+                .transition(trStageTransition(2, of: 3, reduceMotion: reduceMotion))
             }
         }
         .frame(height: 44)
+    }
+}
+
+/// Panelens höjd, så att nedsvepet vet var halva vägen går.
+struct SheetHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
@@ -146,6 +192,8 @@ struct SettingsRow: View {
             Text(title)
                 .font(TR.Font.body)
                 .trLabelScaling()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .foregroundStyle(colors.textPrimary)
             Spacer(minLength: 8)
             if !value.isEmpty {
@@ -154,6 +202,7 @@ struct SettingsRow: View {
                     .trLabelScaling()
                     .foregroundStyle(colors.textSecondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             if let accessory { accessory }
             if showsChevron {
@@ -239,14 +288,28 @@ struct PanelNotice: View {
     var body: some View {
         let colors = TR.Colors.of(scheme)
         if let notice = connection.notice {
+            let text = NoticeText.from(notice)
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.system(size: 17))
                     .foregroundStyle(colors.danger)
-                Text(notice)
-                    .font(TR.Font.body)
-                    .foregroundStyle(colors.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(text.what)
+                        .font(TR.Font.body)
+                        .foregroundStyle(colors.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !text.means.isEmpty {
+                        Text(text.means)
+                            .font(TR.Font.caption)
+                            .foregroundStyle(colors.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Text(text.next)
+                        .font(TR.Font.caption)
+                        .foregroundStyle(colors.accentText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 12)
                 Spacer(minLength: 4)
                 Button { connection.notice = nil } label: {
                     Image(systemName: "xmark")
@@ -259,7 +322,8 @@ struct PanelNotice: View {
             }
             .padding(.leading, 14)
             .background(colors.danger.opacity(0.12), in: RoundedRectangle(cornerRadius: TR.Radius.sheetRow, style: .continuous))
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(text.spoken)
         }
     }
 }

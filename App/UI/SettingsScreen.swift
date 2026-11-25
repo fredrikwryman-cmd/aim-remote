@@ -10,17 +10,34 @@ struct SettingsScreen: View {
     var openPanel: (Panel) -> Void
 
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Punkt 16: rubriken krymper in i toppfältet när sidan scrollas.
+    @State private var scrolled: CGFloat = 0
+
+    private let space = "trSettingsScroll"
 
     var body: some View {
         let colors = TR.Colors.of(scheme)
         ScrollView {
             VStack(spacing: 0) {
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: SettingsScrollKey.self,
+                        value: -proxy.frame(in: .named(space)).minY
+                    )
+                }
+                .frame(height: 0)
+
                 Text("Inställningar")
                     .font(TR.Font.largeTitle)
                     .trLabelScaling()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                     .foregroundStyle(colors.textPrimary)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 15)
+                    .opacity(Double(1 - collapse))
+                    .scaleEffect(reduceMotion ? 1 : 1 - collapse * 0.14, anchor: .top)
 
                 hero.padding(.top, 21)
 
@@ -32,15 +49,18 @@ struct SettingsScreen: View {
                                 )) {
                         openPanel(.connection)
                     }
+                    .panelSource(.connection)
                     TRDivider()
                     SettingsRow(icon: "circle.lefthalf.filled", title: "Utseende",
                                 value: appearance.title) {
                         openPanel(.appearance)
                     }
+                    .panelSource(.appearance)
                     TRDivider()
                     SettingsRow(icon: "questionmark.circle", title: "Hjälp") {
                         openPanel(.help)
                     }
+                    .panelSource(.help)
                     TRDivider()
                     SettingsRow(
                         icon: "iphone.radiowaves.left.and.right",
@@ -66,6 +86,39 @@ struct SettingsScreen: View {
             }
             .padding(.horizontal, TR.Size.sidePadding)
         }
+        .coordinateSpace(name: space)
+        .onPreferenceChange(SettingsScrollKey.self) { scrolled = $0 }
+        .overlay(alignment: .top) { topBar }
+    }
+
+    /// 0 vid toppen, 1 när rubriken sitter i toppfältet.
+    private var collapse: CGFloat {
+        min(max(scrolled / 48, 0), 1)
+    }
+
+    /// Toppfältet ligger som ett lager över sidan, så layouten i vila är
+    /// oförändrad. Avdelaren syns först när innehåll ligger under fältet.
+    private var topBar: some View {
+        let colors = TR.Colors.of(scheme)
+        return VStack(spacing: 0) {
+            ZStack {
+                colors.background.opacity(0.96)
+                Text("Inställningar")
+                    .font(TR.Font.deviceTitle)
+                    .trLabelScaling()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .foregroundStyle(colors.textPrimary)
+            }
+            .frame(height: 44)
+            Rectangle()
+                .fill(colors.divider)
+                .frame(height: 1)
+                .opacity(scrolled > 4 ? 1 : 0)
+        }
+        .opacity(Double(collapse))
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private var appearance: AppearanceMode {
@@ -133,10 +186,11 @@ struct AppearancePanel: View {
                 ForEach(Array(order.enumerated()), id: \.element.id) { index, mode in
                     if index > 0 { TRDivider() }
                     Button {
+                        TRHaptics.selection()
                         if reduceMotion {
                             appearanceRaw = mode.rawValue
                         } else {
-                            withAnimation(.easeInOut(duration: TR.Motion.themeSwap)) {
+                            withAnimation(.easeInOut(duration: TRMotion.theme)) {
                                 appearanceRaw = mode.rawValue
                             }
                         }
@@ -172,5 +226,14 @@ struct AppearancePanel: View {
                 .padding(.top, 12)
                 .padding(.horizontal, 4)
         }
+    }
+}
+
+
+/// Hur långt Inställningar har scrollats.
+struct SettingsScrollKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }

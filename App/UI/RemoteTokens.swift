@@ -306,17 +306,6 @@ enum TR {
         static let splashButton: CGFloat = 20
     }
 
-    enum Motion {
-        static let press: Double = 0.10
-        static let pressScale: CGFloat = 0.96
-        static let pressOpacity: Double = 0.9
-        static let sheetIn: Double = 0.28
-        static let sheetOut: Double = 0.20
-        static let tab: Double = 0.18
-        /// Korsövergång vid byte av utseende.
-        static let themeSwap: Double = 0.25
-    }
-
     // MARK: - Typsnitt: SF Pro, systemets (sid 5)
 
     enum Font {
@@ -342,7 +331,7 @@ enum TR {
 
     /// Knappstates sid 5. Standard, Pressed, Disabled och Selected.
     enum State {
-        static let pressedScale: CGFloat = 0.96
+        /// Nedtryckt skala ligger i TRMotion.pressScale: den är rörelse.
         static let pressedOpacity: Double = 0.9
         static let disabledOpacity: Double = 0.4
     }
@@ -357,33 +346,6 @@ struct LimitedDynamicType: ViewModifier {
 
 extension View {
     func trLabelScaling() -> some View { modifier(LimitedDynamicType()) }
-}
-
-// MARK: - Haptik
-
-@MainActor
-enum TRHaptics {
-    private static var enabled: Bool {
-        UserDefaults.standard.object(forKey: "tr.remote.haptics") as? Bool ?? true
-    }
-    static func key() { impact(.light) }
-    static func ok() { impact(.medium) }
-    static func power() { impact(.heavy) }
-    static func repeated() {
-        guard enabled else { return }
-        UISelectionFeedbackGenerator().selectionChanged()
-    }
-    static func connected() { notify(.success) }
-    static func error() { notify(.warning) }
-
-    private static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
-        guard enabled else { return }
-        UIImpactFeedbackGenerator(style: style).impactOccurred()
-    }
-    private static func notify(_ type: UINotificationFeedbackGenerator.FeedbackType) {
-        guard enabled else { return }
-        UINotificationFeedbackGenerator().notificationOccurred(type)
-    }
 }
 
 // MARK: - Bakgrund

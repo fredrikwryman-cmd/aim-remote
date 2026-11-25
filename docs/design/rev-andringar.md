@@ -2,7 +2,7 @@
 
 Endast BETEENDE: rörelse, haptik, flöden och tillstånd. Inga färger, typsnitt, former, mått eller skyddade tillgångar ändras. Inga funktioner läggs till eller tas bort. Utseendet följer PDF-facit som i dag.
 
-Markera varje punkt: JA, NEJ eller ÄNDRA (med kommentar). Inget byggs förrän listan är godkänd.
+**GODKÄND AV FREDRIK 25 nov 2026: alla punkter 1–19 JA.**
 
 ## A. Tryck och haptik
 1. **Alla tangenter trycks ned likadant.** Skalning 0.97 med snabb fjäder på varje tryckbar yta: tangenter, vippor, rader i Inställningar, flikar och Anslut-pillret. Visuell respons inom 100 ms. (Finns delvis i dag på tangenterna.)

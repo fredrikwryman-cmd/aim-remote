@@ -18,14 +18,19 @@ struct RemoteRoot: View {
     @AppStorage("tr.remote.haptics") private var haptics = true
     @State private var tab: MainTab = .remote
     @State private var panel: Panel?
+    /// Kort entré när appen kommer fram igen (punkt 17).
+    @State private var entered = true
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Group {
+            // Flikbyte: korsövergång 160 ms med 8 pt glidning uppåt (punkt 15).
+            ZStack {
                 if tab == .remote {
                     RemoteScreen(connection: connection) { open($0) }
+                        .transition(tabTransition)
                 } else {
                     SettingsScreen(
                         connection: connection,
@@ -33,43 +38,53 @@ struct RemoteRoot: View {
                         appearanceRaw: $appearanceRaw,
                         openPanel: { open($0) }
                     )
+                    .transition(tabTransition)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.bottom, TR.Size.tabBar + 10)
 
             FloatingTabBar(selection: $tab)
                 .padding(.bottom, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Fjärren bakom en öppen panel sjunker (punkt 7), och entrén börjar
+        // strax över full storlek (punkt 17). Bakgrunden ligger utanför och
+        // skalas inte, så inga kanter blottas.
+        .scaleEffect(contentScale)
+        .opacity(entered ? 1 : 0)
+        .animation(TRMotion.spring(reduceMotion, TRMotion.smooth), value: panel)
         // Bakgrunden ligger bakom innehållet i stället för bredvid det i
         // stacken. En syskonvy med ignoresSafeArea drar ut hela stacken, och
         // då hamnade rubriken under statusfältet.
         .background(RemoteBackground())
         .tint(TR.Colors.of(scheme).accentText)
-        .overlay {
-            if let panel {
-                sheet(for: panel)
-                    .transition(
-                        reduceMotion
-                            ? .opacity
-                            : .asymmetric(
-                                insertion: .opacity.combined(with: .offset(y: 24)),
-                                removal: .opacity
-                            )
-                    )
+        // Panelen växer ur den knapp som öppnade den. Knapparna märks med
+        // panelSource(_:), och deras läge läses här.
+        .overlayPreferenceValue(PanelOriginKey.self) { anchors in
+            GeometryReader { proxy in
+                if let panel {
+                    sheet(for: panel)
+                        .environment(\.panelOrigin, origin(of: panel, anchors, proxy))
+                        .transition(.opacity)
+                }
             }
         }
         // Utseendet sätts här, i vyn som läser värdet. Låg det i App-kroppen
         // räknades skrivningen aldrig om till ett nytt colorScheme.
         .preferredColorScheme(AppearanceMode(rawValue: appearanceRaw)?.colorScheme)
-        // Byte av utseende: korsövergång 250 ms, direkt vid Reducera rörelse.
-        .animation(reduceMotion ? nil : .easeInOut(duration: TR.Motion.themeSwap),
+        // Byte av utseende: korsövergång, direkt vid Reducera rörelse.
+        .animation(reduceMotion ? nil : .easeInOut(duration: TRMotion.theme),
                    value: appearanceRaw)
         .onChange(of: connection.ready) { ready in
             if ready { TRHaptics.connected() }
         }
         .onChange(of: connection.notice) { notice in
             if notice != nil { TRHaptics.error() }
+        }
+        .onAppear { playEntrance() }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active { playEntrance() }
         }
         // Widgetens yta oppnar techrabbit://remote. Da visas fjarrskarmen och
         // en oppen panel stangs.
@@ -79,6 +94,45 @@ struct RemoteRoot: View {
             else { return }
             close()
             tab = .remote
+        }
+    }
+
+    private var contentScale: CGFloat {
+        if reduceMotion { return 1 }
+        if panel != nil { return TRMotion.recedeScale }
+        return entered ? 1 : TRMotion.entranceScale
+    }
+
+    private var tabTransition: AnyTransition {
+        guard !reduceMotion else { return .opacity }
+        return .asymmetric(
+            insertion: AnyTransition.opacity.combined(with: .offset(y: 8)),
+            removal: .opacity
+        )
+    }
+
+    /// Knappens mitt, uttryckt som en punkt i skärmens ruta.
+    private func origin(of panel: Panel,
+                        _ anchors: [String: Anchor<CGRect>],
+                        _ proxy: GeometryProxy) -> UnitPoint {
+        guard let anchor = anchors[panel.id] else { return .center }
+        let size = proxy.size
+        guard size.width > 0, size.height > 0 else { return .center }
+        let rect = proxy[anchor]
+        return UnitPoint(x: min(max(rect.midX / size.width, 0), 1),
+                         y: min(max(rect.midY / size.height, 0), 1))
+    }
+
+    private func playEntrance() {
+        guard !reduceMotion else {
+            entered = true
+            return
+        }
+        entered = false
+        // Nollstallningen och entren maste ligga i tva olika uppdateringar,
+        // annars ser SwiftUI bara slutlaget och ingen rorelse blir av.
+        Task { @MainActor in
+            withAnimation(.easeOut(duration: TRMotion.entrance)) { entered = true }
         }
     }
 
@@ -103,10 +157,11 @@ struct RemoteRoot: View {
     }
 
     private func open(_ next: Panel) {
+        TRHaptics.soft()
         if reduceMotion {
             panel = next
         } else {
-            withAnimation(.easeOut(duration: TR.Motion.sheetIn)) { panel = next }
+            withAnimation(.easeOut(duration: TRMotion.swap)) { panel = next }
         }
     }
 
@@ -114,7 +169,7 @@ struct RemoteRoot: View {
         if reduceMotion {
             panel = nil
         } else {
-            withAnimation(.easeOut(duration: TR.Motion.sheetOut)) { panel = nil }
+            withAnimation(.easeIn(duration: TRMotion.sheetOut)) { panel = nil }
         }
     }
 }

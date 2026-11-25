@@ -11,9 +11,16 @@ struct ChooseTVPanel: View {
 
     @StateObject private var discovery = TVDiscovery()
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedNewHost = ""
     @State private var code = ""
     @State private var forgetTarget: SavedTV?
+    /// Punkt 12: tomt läge efter ungefär 8 sekunder utan träff.
+    @State private var emptyShown = false
+    @State private var searchToken = 0
+    /// Punkt 13: fel kod skakar fältet, rätt kod firas.
+    @State private var codeSubmitted = false
+    @State private var shake: CGFloat = 0
 
     // Bara det som TVDiscovery hittar via _androidtvremote2, minus det som
     // redan är sparat.
@@ -30,29 +37,44 @@ struct ChooseTVPanel: View {
                     .padding(.top, 8)
 
                 if connection.savedTVs.isEmpty && discovered.isEmpty {
-                    Text("Inga TV-apparater hittades på nätverket")
-                        .font(TR.Font.body)
-                        .foregroundStyle(colors.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 28)
-                    TRPrimaryButton(title: "Sök igen") {
-                        discovery.stop()
-                        discovery.start()
+                    if emptyShown {
+                        Text("Ingen TV hittades. Kontrollera att TV:n är på och på samma wifi.")
+                            .font(TR.Font.body)
+                            .foregroundStyle(colors.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 28)
+                        TRPrimaryButton(title: "Sök igen") { searchAgain() }
+                            .padding(.horizontal, 14)
+                    } else {
+                        // Laddningsskelett i rätt form, ingen ensam snurra.
+                        VStack(spacing: 8) {
+                            TRSkeletonRow()
+                            TRSkeletonRow()
+                            TRSkeletonRow()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 18)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Söker efter TV-apparater")
                     }
-                    .padding(.horizontal, 14)
                 } else {
                     ScrollView {
                         VStack(spacing: 0) {
                             ForEach(Array(connection.savedTVs.enumerated()), id: \.element.id) { index, tv in
                                 if index > 0 { TRDivider() }
-                                SwipeToForget(onForget: { forgetTarget = tv }) {
+                                SwipeToForget(onForget: {
+                                    withAnimation(TRMotion.crossfade) { forgetTarget = tv }
+                                }) {
                                     row(
                                         name: tv.name,
                                         detail: tv.host,
                                         selected: connection.activeTVID == tv.id,
                                         saved: true
                                     ) {
+                                        TRHaptics.selection()
                                         selectedNewHost = ""
                                         connection.select(tv)
                                     }
@@ -75,14 +97,23 @@ struct ChooseTVPanel: View {
                                         selected: selectedNewHost == device.host,
                                         saved: false
                                     ) {
+                                        TRHaptics.selection()
                                         selectedNewHost = device.host
                                     }
+                                    .transition(
+                                        reduceMotion
+                                            ? .opacity
+                                            : .opacity.combined(with: .offset(y: 10))
+                                    )
                                 }
                             }
                         }
                     }
                     .frame(maxHeight: 300)
                     .padding(.top, 6)
+                    // Nya TV:ar glider in i stället för att hoppa (punkt 11).
+                    .animation(TRMotion.spring(reduceMotion, TRMotion.smooth),
+                               value: discovered.count)
 
                     if connection.needsCode {
                         codeField.padding(.top, 10)
@@ -104,22 +135,79 @@ struct ChooseTVPanel: View {
                 }
             }
         }
-        .onAppear { discovery.start() }
+        .onAppear {
+            discovery.start()
+            armEmptyState()
+        }
         .onDisappear { discovery.stop() }
         .onChange(of: connection.ready) { ready in
-            if ready { onClose() }
+            guard ready else { return }
+            codeSubmitted = false
+            // Punkt 13: TV:n landar i listan som Ansluten, sedan stängs
+            // panelen. Haptiken success kommer från RemoteRoot.
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 600_000_000)
+                onClose()
+            }
         }
-        .confirmationDialog(
-            "Glöm \(forgetTarget?.name ?? "TV:n")?",
-            isPresented: Binding(get: { forgetTarget != nil }, set: { if !$0 { forgetTarget = nil } }),
-            titleVisibility: .visible,
-            presenting: forgetTarget
-        ) { tv in
-            Button("Glöm \(tv.name)", role: .destructive) { connection.forget(id: tv.id) }
-            Button("Avbryt", role: .cancel) { }
-        } message: { tv in
-            Text("\(tv.host). Tech Rabbit Remote kan inte styra den här TV:n förrän du parkopplar igen.")
+        .onChange(of: connection.notice) { notice in
+            guard notice != nil, codeSubmitted else { return }
+            codeSubmitted = false
+            TRHaptics.error()
+            shakeCode()
         }
+        // Punkt 14: bekräftelseark med konsekvensen i klartext.
+        .overlay {
+            if let tv = forgetTarget {
+                TRConfirmSheet(
+                    title: "Glöm \(tv.name)?",
+                    message: forgetMessage(host: tv.host),
+                    confirmTitle: "Glöm \(tv.name)",
+                    onConfirm: {
+                        connection.forget(id: tv.id)
+                        withAnimation(TRMotion.crossfade) { forgetTarget = nil }
+                    },
+                    onCancel: {
+                        withAnimation(TRMotion.crossfade) { forgetTarget = nil }
+                    }
+                )
+                .transition(.opacity)
+            }
+        }
+    }
+
+    /// Punkt 12: tomt läge visas först när sökningen hunnit en stund.
+    private func armEmptyState() {
+        searchToken += 1
+        let token = searchToken
+        emptyShown = false
+        Task { @MainActor in
+            try? await Task.sleep(
+                nanoseconds: UInt64(TRMotion.emptyStateDelay * 1_000_000_000))
+            guard token == searchToken, discovery.devices.isEmpty else { return }
+            withAnimation(TRMotion.crossfade) { emptyShown = true }
+        }
+    }
+
+    private func searchAgain() {
+        discovery.stop()
+        discovery.start()
+        armEmptyState()
+    }
+
+    private func shakeCode() {
+        guard !reduceMotion else { return }
+        let steps: [CGFloat] = [-8, 7, -5, 3, 0]
+        for (index, offset) in steps.enumerated() {
+            withAnimation(.linear(duration: 0.05).delay(Double(index) * 0.05)) {
+                shake = offset
+            }
+        }
+    }
+
+    private func forgetMessage(host: String) -> String {
+        let consequence = "Du måste skriva in koden från TV:n igen för att ansluta."
+        return host.isEmpty ? consequence : "\(consequence) (\(host))"
     }
 
     private var primaryTitle: String {
@@ -138,6 +226,7 @@ struct ChooseTVPanel: View {
 
     private func primaryAction() {
         if connection.needsCode {
+            codeSubmitted = true
             connection.submit(code: code)
             return
         }
@@ -231,6 +320,7 @@ struct ChooseTVPanel: View {
                 .accessibilityLabel("Kod, sex tecken, \(code.count) av 6 ifyllda")
         }
         .padding(.horizontal, 14)
+        .offset(x: shake)
     }
 }
 
@@ -362,7 +452,9 @@ struct ConnectionPanel: View {
                             .disabled(address.isEmpty || connection.busy)
                     }
 
-                    Button("Glöm \(connection.tvName)") { confirmForget = true }
+                    Button("Glöm \(connection.tvName)") {
+                        withAnimation(TRMotion.crossfade) { confirmForget = true }
+                    }
                         .font(TR.Font.body)
                         .foregroundStyle(colors.danger)
                         .frame(maxWidth: .infinity)
@@ -383,15 +475,24 @@ struct ConnectionPanel: View {
             address = connection.host
             name = connection.tvName
         }
-        .confirmationDialog(
-            "Glöm parkoppling med \(connection.tvName)?",
-            isPresented: $confirmForget,
-            titleVisibility: .visible
-        ) {
-            Button("Glöm \(connection.tvName)", role: .destructive) { connection.forget() }
-            Button("Avbryt", role: .cancel) { }
-        } message: {
-            Text("\(connection.host). Tech Rabbit Remote kan inte styra den här TV:n förrän du parkopplar igen.")
+        .overlay {
+            if confirmForget {
+                TRConfirmSheet(
+                    title: "Glöm parkoppling med \(connection.tvName)?",
+                    message: connection.host.isEmpty
+                        ? "Du måste skriva in koden från TV:n igen för att ansluta."
+                        : "Du måste skriva in koden från TV:n igen för att ansluta. (\(connection.host))",
+                    confirmTitle: "Glöm \(connection.tvName)",
+                    onConfirm: {
+                        connection.forget()
+                        withAnimation(TRMotion.crossfade) { confirmForget = false }
+                    },
+                    onCancel: {
+                        withAnimation(TRMotion.crossfade) { confirmForget = false }
+                    }
+                )
+                .transition(.opacity)
+            }
         }
     }
 
@@ -670,7 +771,7 @@ struct ConnectionLogPanel: View {
                     Button {
                         UIPasteboard.general.string = ConnectionLog.shared.text
                         copied = true
-                        TRHaptics.key()
+                        TRHaptics.selection()
                     } label: {
                         Label(copied ? "Kopierad" : "Kopiera", systemImage: copied ? "checkmark" : "doc.on.doc")
                             .font(TR.Font.caption)

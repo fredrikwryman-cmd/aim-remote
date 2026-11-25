@@ -9,6 +9,7 @@ struct RemoteScreen: View {
     var openPanel: (Panel) -> Void
 
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Panelen behåller facit-proportionerna. Bredderna skalas mot facit-
     /// sidans innerbredd, höjden mot ytan som finns kvar ned till flikraden.
@@ -121,11 +122,13 @@ struct RemoteScreen: View {
                     .trLabelScaling()
                     .foregroundStyle(colors.textPrimary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 Text("Tech Rabbit Remote")
                     .font(TR.Font.caption)
                     .trLabelScaling()
                     .foregroundStyle(colors.textSecondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             .padding(.leading, l.headerTextGap)
 
@@ -140,6 +143,7 @@ struct RemoteScreen: View {
             }
             .buttonStyle(TRPressStyle())
             .accessibilityLabel("Välj TV")
+            .panelSource(.chooseTV)
         }
         .padding(.horizontal, l.headerPadding)
         .frame(height: l.headerHeight)
@@ -158,22 +162,47 @@ struct RemoteScreen: View {
     private func statusRow(_ l: TR.Layout) -> some View {
         let colors = TR.Colors.of(scheme)
         return HStack(spacing: 10) {
-            StatusDot(state: state)
-            Text(state.text)
-                .font(TR.Font.body)
-                .trLabelScaling()
-                .foregroundStyle(state.textColor(colors))
-            Spacer(minLength: 8)
-            TRStatusPill(title: state.pill, height: l.statusRow) {
-                switch state {
-                case .connected: connection.disconnect()
-                default: openPanel(.chooseTV)
+            ZStack(alignment: .leading) {
+                HStack(spacing: 10) {
+                    StatusDot(state: state)
+                    Text(state.text)
+                        .font(TR.Font.body)
+                        .trLabelScaling()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .foregroundStyle(state.textColor(colors))
                 }
+                .id(state)
+                .transition(.opacity)
             }
-            .accessibilityLabel(state.pill)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(spokenStatus)
+
+            Spacer(minLength: 8)
+
+            // Ansluten: pillret behovs inte langre och doljs.
+            if state != .connected {
+                TRStatusPill(title: state.pill, height: l.statusRow) {
+                    openPanel(.chooseTV)
+                }
+                .disabled(state == .connecting)
+                .accessibilityLabel(state.pill)
+                .transition(.opacity)
+            }
         }
         .padding(.horizontal, l.statusInset)
         .frame(height: l.statusRow)
+        .animation(.easeInOut(duration: TRMotion.swap), value: state)
+    }
+
+    /// Punkt 19: VoiceOver laser hela statusen, inte bara ordet.
+    private var spokenStatus: String {
+        switch state {
+        case .connected: return "Ansluten till \(connection.tvName)"
+        case .connecting: return "Ansluter till \(connection.tvName)"
+        case .disconnected: return "Inte ansluten till \(connection.tvName)"
+        case .failed: return "Kunde inte ansluta till \(connection.tvName)"
+        }
     }
 
     private var state: RemoteState {
@@ -207,6 +236,7 @@ struct RemoteScreen: View {
                             .disabled(!connection.ready)
                         // Tangentbordet öppnar en panel i appen och behöver ingen TV.
                         smallKey("keyboard", "Öppna tangentbord", m) { openPanel(.keyboard) }
+                            .panelSource(.keyboard)
                     }
                 }
                 .frame(height: m.rockerHeight)
@@ -225,6 +255,7 @@ struct RemoteScreen: View {
                     ghost(m, "Sifferknappar") { openPanel(.numbers) } label: {
                         Text("123").font(TR.Font.numeric)
                     }
+                    .panelSource(.numbers)
                     dpadKey("chevron.up", "Upp", m) { connection.press(.up) }
                         .disabled(!connection.ready)
                     ghost(m, connection.recording ? "Stoppa röststyrning" : "Röststyrning") {
@@ -243,7 +274,7 @@ struct RemoteScreen: View {
                         .disabled(!connection.ready)
                     TRKey(width: m.dpadKey, height: m.dpadRow, radius: TR.Radius.dpadKey,
                           dims: false) {
-                        TRHaptics.ok()
+                        TRHaptics.key()
                         connection.press(.ok)
                     } label: {
                         Text("OK").font(.system(size: 21, weight: .bold))
@@ -345,7 +376,7 @@ private struct PowerButton: View {
     var body: some View {
         let colors = TR.Colors.of(scheme)
         Button {
-            TRHaptics.power()
+            TRHaptics.key()
             action()
         } label: {
             Image(systemName: "power")
@@ -379,7 +410,7 @@ enum RemoteState {
     var pill: String {
         switch self {
         case .connected: return "Koppla från"
-        case .connecting: return "Avbryt"
+        case .connecting: return "Ansluter…"
         case .disconnected: return "Anslut"
         case .failed: return "Försök igen"
         }
@@ -406,6 +437,8 @@ struct StatusDot: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var dim = false
+    @State private var blinkScale: CGFloat = 1
+    @State private var blinkOpacity: Double = 0
 
     var body: some View {
         let colors = TR.Colors.of(scheme)
@@ -419,7 +452,31 @@ struct StatusDot: View {
                     : .default,
                 value: dim
             )
-            .onAppear { dim = true }
+            .overlay {
+                Circle()
+                    .fill(colors.accent)
+                    .frame(width: TR.Size.statusDot, height: TR.Size.statusDot)
+                    .scaleEffect(blinkScale)
+                    .opacity(blinkOpacity)
+                    .allowsHitTesting(false)
+            }
+            .onAppear { start() }
             .accessibilityHidden(true)
+    }
+
+    /// Pricken fods i det nya laget: statusraden byter identitet vid
+    /// lagesbyte. Ar laget Ansluten blinkar den en gang, annars bara pulsen.
+    private func start() {
+        dim = true
+        guard state == .connected else { return }
+        blinkOpacity = 1
+        if reduceMotion {
+            withAnimation(TRMotion.crossfade) { blinkOpacity = 0 }
+        } else {
+            withAnimation(.easeOut(duration: 0.45)) {
+                blinkScale = 2.6
+                blinkOpacity = 0
+            }
+        }
     }
 }

@@ -26,7 +26,7 @@ struct AiMRemoteApp: App {
                         if UIAccessibility.isReduceMotionEnabled {
                             onboarded = true
                         } else {
-                            withAnimation(.easeOut(duration: TR.Motion.themeSwap)) { onboarded = true }
+                            withAnimation(.easeOut(duration: TRMotion.theme)) { onboarded = true }
                         }
                     }
                     .transition(.opacity)
