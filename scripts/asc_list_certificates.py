@@ -4,14 +4,13 @@
 Bara lasning. Inget certifikat skapas och inget aterkallas: det ar ett
 beslut for kontots agare och gors i Developer-portalen.
 
-Apple har ett tak per typ. Nar taket for Apple Development ar natt svarar
+Nar Apples tak for Apple Development ar natt svarar
 xcodebuild med "Choose a certificate to revoke" och arkiveringen faller.
 Steget skriver darfor ut vad som finns, sa att loggen visar exakt vilka
 certifikat som gar att aterkalla.
 
-Avslutar med 1 om taket for Apple Development ar natt, annars 0. Gar
-anropet inte att gora alls avslutas med 0: listningen ar en hjalp, inte
-ett krav.
+Avslutar alltid med 0: listningen ar en hjalp, inte ett krav. Det riktiga
+felet kommer fran xcodebuild.
 
 Kraver pyjwt och cryptography samt ASC_KEY_PATH, ASC_KEY_ID och
 ASC_ISSUER_ID i miljon.
@@ -28,10 +27,12 @@ import urllib.request
 
 API = "https://api.appstoreconnect.apple.com"
 
-# Apples tak per typ. Development ar det som tar slut forst i CI, eftersom
-# varje korning pa en ny runner saknar den privata nyckeln och darfor maste
-# skapa ett nytt certifikat.
-LIMITS = {"DEVELOPMENT": 2, "IOS_DEVELOPMENT": 2}
+# Varje korning sker pa en ny runner utan den privata nyckeln till kontots
+# befintliga certifikat, sa automatisk signering skapar ett nytt vid varje
+# arkivering. De heter "Created via API" och samlas pa hog tills Apples tak
+# ar natt. Taket star inte dokumenterat som en siffra, sa skriptet pastar
+# ingen grans: det raknar och sager till nar hogen blivit stor.
+VARNA_VID = 10
 
 
 def token() -> str:
@@ -96,23 +97,23 @@ def main() -> int:
         ))
     print("")
 
-    full = []
+    via_api = sum(
+        1 for item in items
+        if str(item.get("attributes", {}).get("certificateType", "")) == "DEVELOPMENT"
+        and "Created via API" in str(item.get("attributes", {}).get("name", ""))
+    )
     for kind, count in sorted(per_type.items()):
-        limit = LIMITS.get(kind)
-        mark = ""
-        if limit is not None and count >= limit:
-            mark = "  <-- taket ar natt (%d av %d)" % (count, limit)
-            full.append(kind)
-        print("  %-22s %d%s" % (kind, count, mark))
+        print("  %-22s %d" % (kind, count))
 
-    if full:
+    if via_api >= VARNA_VID:
         print("")
-        print("::error::Taket for %s ar natt. Arkiveringen kommer falla med "
-              "\"Choose a certificate to revoke\". Ett certifikat maste "
-              "aterkallas i Developer-portalen: "
+        print("::warning::%d av certifikaten ar av typen DEVELOPMENT och heter "
+              "\"Created via API\", alltsa skapade av den har arbetsfloden. "
+              "Varje korning lagger till ett till. Nar Apples tak ar natt "
+              "faller arkiveringen med \"Choose a certificate to revoke\". "
+              "De aterkallas i Developer-portalen: "
               "https://developer.apple.com/account/resources/certificates/list"
-              % ", ".join(full))
-        return 1
+              % via_api)
     return 0
 
 
