@@ -76,7 +76,7 @@ final class TVConnection: ObservableObject {
     private var peerCertificate: Data?
     private var frames = FrameBuffer()
     private var pairing = PairingExchange()
-    private var remote = RemoteExchange()
+    private var remote = RemoteExchange(appVersion: AppVersion.marketing)
     private var isPairing = false
     private var generation = UUID()
     private var deadline: DispatchWorkItem?
@@ -135,7 +135,9 @@ final class TVConnection: ObservableObject {
             attemptExpected = ConnectionLog.short(pin)
             attemptPresented = "-"
             attemptLogged = false
-            pairing = PairingExchange(); remote = RemoteExchange(); frames = FrameBuffer()
+            pairing = PairingExchange()
+            remote = RemoteExchange(appVersion: AppVersion.marketing)
+            frames = FrameBuffer()
             peerCertificate = nil; peerKey = nil
             busy = true; status = pair ? "Startar parkoppling…" : "Ansluter…"
             let token = generation

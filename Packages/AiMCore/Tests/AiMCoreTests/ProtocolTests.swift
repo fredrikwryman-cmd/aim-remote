@@ -61,6 +61,25 @@ final class ProtocolTests: XCTestCase {
         XCTAssertEqual(result.replies.count, 2)
         XCTAssertEqual(try Proto(result.replies[1]).child(9)?.number(1), 458)
     }
+    func testHandshakeSendsTheAppVersionItWasGiven() throws {
+        var remote = RemoteExchange(appVersion: "2.3.4")
+        let result = try remote.receive(Proto.blob(1, Proto.uint(1, 103)))
+        let negotiation = try XCTUnwrap(try Proto(result.replies[0]).child(1))
+        let info = try XCTUnwrap(try negotiation.child(2))
+        XCTAssertEqual(info.string(6), "2.3.4")
+        // Fältordningen och de övriga fälten är oförändrade.
+        XCTAssertEqual(info.string(1), "iPhone")
+        XCTAssertEqual(info.string(2), "AiM")
+        XCTAssertEqual(info.number(3), 1)
+        XCTAssertEqual(info.string(4), "1")
+        XCTAssertEqual(info.string(5), "aim.remote")
+    }
+    func testHandshakeFallsBackToAVersionWhenNoneIsGiven() throws {
+        var remote = RemoteExchange()
+        let result = try remote.receive(Proto.blob(1, Proto.uint(1, 103)))
+        let info = try XCTUnwrap(try Proto(result.replies[0]).child(1)?.child(2))
+        XCTAssertEqual(info.string(6), "1.0.0")
+    }
     func testTextRequiresIMEAndKeepsCounters() throws {
         var remote = RemoteExchange()
         XCTAssertThrowsError(try remote.text("Hej"))

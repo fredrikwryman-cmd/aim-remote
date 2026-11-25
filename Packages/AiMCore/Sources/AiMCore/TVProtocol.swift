@@ -60,7 +60,13 @@ public struct RemoteExchange {
     public private(set) var imeCounter: UInt64 = 0
     public private(set) var fieldCounter: UInt64 = 0
     public private(set) var hasTextField = false
-    public init() {}
+    /// Appversionen TV:n får i enhetsinformationen (fält 6 i handskakningen),
+    /// och som TV:n kan visa i sin lista över anslutna enheter. Värdet skickas
+    /// in av den som använder paketet — appen läser det ur sin egen bundle —
+    /// så AiMCore inte behöver känna till någon bundle. Reservvärdet används
+    /// bara av anropare som inte skickar in någon version.
+    public let appVersion: String
+    public init(appVersion: String = "1.0.0") { self.appVersion = appVersion }
     public mutating func receive(_ data: Data) throws -> (replies: [Data], events: [RemoteEvent]) {
         let m = try Proto(data)
         var replies: [Data] = [], events: [RemoteEvent] = []
@@ -68,7 +74,8 @@ public struct RemoteExchange {
             features &= cfg.number(1)
             guard features & 2 != 0 else { throw WireError.unexpectedMessage }
             let info = Proto.text(1, "iPhone") + Proto.text(2, "AiM") + Proto.uint(3, 1)
-                + Proto.text(4, "1") + Proto.text(5, "aim.remote") + Proto.text(6, "0.1.0")
+                + Proto.text(4, "1") + Proto.text(5, "aim.remote")
+                + Proto.text(6, appVersion)
             replies.append(Proto.blob(1, Proto.uint(1, features) + Proto.blob(2, info)))
         }
         if m.bytes[2] != nil { replies.append(Proto.blob(2, Proto.uint(1, features))) }
