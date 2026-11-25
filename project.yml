@@ -10,7 +10,7 @@ settings:
     SWIFT_VERSION: '5.0'
     IPHONEOS_DEPLOYMENT_TARGET: '16.4'
     TARGETED_DEVICE_FAMILY: '1'
-    MARKETING_VERSION: '0.1.0'
+    MARKETING_VERSION: '1.0.0'
     CURRENT_PROJECT_VERSION: '1'
 packages:
   AiMCore:
@@ -26,6 +26,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: se.aim.remote
+        MARKETING_VERSION: '1.0.0'
         INFOPLIST_FILE: App/Info.plist
         PRODUCT_NAME: AiMRemote
         TARGETED_DEVICE_FAMILY: '1'
@@ -53,6 +54,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: se.aim.remote.widget
+        MARKETING_VERSION: '1.0.0'
         PRODUCT_NAME: TechRabbitWidget
         INFOPLIST_FILE: Widget/Info.plist
         IPHONEOS_DEPLOYMENT_TARGET: '17.0'

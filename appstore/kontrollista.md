@@ -34,13 +34,14 @@ gissa. Se steg 1 nedan.
 | Bundle-ID | `se.aim.remote`, widgeten `se.aim.remote.widget` | KLART |
 | Appnamn i bundlen | `Tech Rabbit Remote` (`CFBundleDisplayName`) | KLART |
 | Appikon 1024 | `App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png`, 1024 × 1024, PNG färgtyp 2 (RGB), ingen alfakanal, ingen `tRNS`-chunk | KLART |
-| Version (`MARKETING_VERSION`) | `0.1.0` | FREDRIK GÖR, se steg 2 |
-| Buildnummer (`CURRENT_PROJECT_VERSION`) | `1` | FREDRIK GÖR, se steg 2 |
+| Version (`MARKETING_VERSION`) | `1.0.0`, satt i `project.yml` för både appen och widgeten | KLART |
+| Buildnummer (`CURRENT_PROJECT_VERSION`) | Sätts av `github.run_number` i `testflight.yml` vid varje uppladdning | KLART |
+| Apple ID för appen | `6837928708`, appen är upplagd i App Store Connect | KLART |
 | Lägsta iOS | 16.4 för appen, 17.0 för widgeten | KLART |
 | Enheter | Bara iPhone (`TARGETED_DEVICE_FAMILY = 1`), bara porträtt | KLART |
 | Integritetsmanifest | `App/PrivacyInfo.xcprivacy` och `Widget/PrivacyInfo.xcprivacy` | KLART |
 | Export och kryptering | `ITSAppUsesNonExemptEncryption = false` i `App/Info.plist` | KLART |
-| Rättigheter | App group `group.se.aim.remote`, nyckelringsgrupp `se.aim.remote.shared`, båda på appen och widgeten | KLART i koden, FREDRIK GÖR i portalen, se steg 3 |
+| Rättigheter | App group `group.se.aim.remote`, nyckelringsgrupp `se.aim.remote.shared`, båda på appen och widgeten | KLART, upplagt i Apple Developer |
 | Bygget är grönt | `ios.yml` kör protokolltester, app- och UI-tester och ett osignerat iPhone-bygge | KLART |
 
 ### Kryptering och export, varför `false`
@@ -182,42 +183,26 @@ bara supportsidans adress som är publik.
    `docs/site/integritet.html`, och `<fyll i supportmejlen>` i
    granskningsanteckningen ovan. Pusha, och Pages bygger om sidorna själv.
 
-2. **Sätt version och buildnummer.** `project.yml` har `MARKETING_VERSION:
-   '0.1.0'` och `CURRENT_PROJECT_VERSION: '1'`. En första version i butiken
-   ska normalt vara `1.0.0`. Ändra raderna i `project.yml`, inte i Xcode, för
-   projektet genereras om vid varje bygge. Buildnummret måste höjas för varje
-   uppladdning till samma version; `1` är ledigt så länge inget laddats upp.
-
-3. **Lägg upp identifierarna i Apple Developer.** Appens ID `se.aim.remote`
-   och widgetens `se.aim.remote.widget`, app group `group.se.aim.remote` och
-   nyckelringsgruppen `se.aim.remote.shared`. Både appen och widgeten ska ha
-   app group och nyckelringsgrupp påslagna, annars kan widgeten inte läsa
-   TV-listan.
-
-4. **Skapa appen i App Store Connect** med bundle-ID `se.aim.remote`, svenska
-   som primärt språk och namnet ur `appstore/butikstext.md`. Säger App Store
-   Connect att namnet är taget, ta andrahandsnamnet i samma fil.
-
-5. **Fyll i App Privacy** enligt `appstore/integritet.md`. Svaret är *No, we do
+2. **Fyll i App Privacy** enligt `appstore/integritet.md`. Svaret är *No, we do
    not collect data from this app*. Publicera avsnittet.
 
-6. **Klistra in butikstexten** ur `appstore/butikstext.md`: namn, undertitel,
+3. **Klistra in butikstexten** ur `appstore/butikstext.md`: namn, undertitel,
    reklamtext, beskrivning, sökord, kategori, copyright, support-URL och URL
    till integritetspolicyn.
 
-7. **Fyll i åldersgränsen** med svaren i samma fil. Resultatet ska bli 4+.
+4. **Fyll i åldersgränsen** med svaren i samma fil. Resultatet ska bli 4+.
 
-8. **Ladda upp skärmbilderna** ur `appstore/skarmbilder/1206x2622/` i
+5. **Ladda upp skärmbilderna** ur `appstore/skarmbilder/1206x2622/` i
    nummerordning 01 till 10. Vill du även fylla 6,9-tumsplatsen, ta
    `appstore/skarmbilder/1320x2868/` på samma sätt.
 
-9. **Bygg och ladda upp appen.** Signerat bygge krävs, och det gör `ios.yml`
+6. **Bygg och ladda upp appen.** Signerat bygge krävs, och det gör `ios.yml`
    inte: den bygger osignerat. Använd `testflight.yml` när du har ett
    Apple Developer-konto och nycklarna på plats. Starta den inte på vinst och
    förlust; gå igenom `TESTFLIGHT.md` först.
 
-10. **Fyll i App Review Information**: namn, telefon, e-post och
+7. **Fyll i App Review Information**: namn, telefon, e-post och
     granskningsanteckningen ovan.
 
-11. **Skicka in.** Inget i det här repot laddar upp något till App Store
+8. **Skicka in.** Inget i det här repot laddar upp något till App Store
     Connect, och ingenting har skickats in. Det sista klicket är ditt.
