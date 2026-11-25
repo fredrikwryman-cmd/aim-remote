@@ -69,8 +69,8 @@ står, inklusive raderna `-----BEGIN PRIVATE KEY-----` och
 3. **Run workflow**.
 
 Build-numret sätts automatiskt till körningens nummer (`github.run_number`), så
-två byggen krockar aldrig i App Store Connect. Versionen kommer ur `MARKETING_VERSION` i
-`project.yml` och står på 1.0.0.
+två byggen krockar aldrig i App Store Connect. Versionen kommer ur
+`MARKETING_VERSION` i `project.yml` och står på 1.0.0.
 
 ## Efter uppladdningen
 
