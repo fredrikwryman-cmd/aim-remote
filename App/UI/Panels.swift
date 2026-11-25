@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import AiMCore
 
 // MARK: - R04 Välj TV
@@ -580,6 +581,7 @@ struct KeyboardPanel: View {
 @MainActor
 struct HelpPanel: View {
     var onClose: () -> Void
+    var openPanel: (Panel) -> Void
     @Environment(\.colorScheme) private var scheme
 
     private let sections: [(String, [String])] = [
@@ -622,6 +624,14 @@ struct HelpPanel: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .trCard()
                     }
+                    VStack(spacing: 0) {
+                        SettingsRow(icon: "list.bullet.rectangle.portrait",
+                                    title: "Anslutningslogg") {
+                            openPanel(.log)
+                        }
+                    }
+                    .trCard()
+
                     Button("Klart") { onClose() }
                         .font(TR.Font.body)
                         .foregroundStyle(colors.accentText)
@@ -632,6 +642,73 @@ struct HelpPanel: View {
                 .padding(.bottom, 8)
             }
             .frame(maxHeight: 520)
+        }
+    }
+}
+
+// Anslutningsloggen: de senaste försöken, nyast först, med en kopieraknapp.
+// Ingen privat nyckel och inget helt certifikat står i loggen, bara korta
+// avtryck.
+@MainActor
+struct ConnectionLogPanel: View {
+    var onClose: () -> Void
+    @Environment(\.colorScheme) private var scheme
+    @State private var entries: [ConnectionLogEntry] = []
+    @State private var copied = false
+
+    var body: some View {
+        let colors = TR.Colors.of(scheme)
+        GlassSheet(title: "Anslutningslogg", top: 90, onClose: onClose) {
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    Text(entries.isEmpty
+                         ? "Inga försök loggade än."
+                         : "\(entries.count) av \(ConnectionLog.limit) försök, nyast först.")
+                        .font(TR.Font.caption)
+                        .foregroundStyle(colors.textSecondary)
+                    Spacer(minLength: 8)
+                    Button {
+                        UIPasteboard.general.string = ConnectionLog.shared.text
+                        copied = true
+                        TRHaptics.key()
+                    } label: {
+                        Label(copied ? "Kopierad" : "Kopiera", systemImage: copied ? "checkmark" : "doc.on.doc")
+                            .font(TR.Font.caption)
+                            .foregroundStyle(colors.accentText)
+                            .padding(.horizontal, 14)
+                            .frame(height: TR.Size.hitTargetMin)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(TRPressStyle())
+                    .accessibilityLabel(copied ? "Kopierad" : "Kopiera anslutningsloggen")
+                }
+                .padding(.horizontal, 4)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if entries.isEmpty {
+                            Text("Loggen fylls varje gång appen försöker ansluta.")
+                                .font(TR.Font.body)
+                                .foregroundStyle(colors.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        ForEach(entries.reversed()) { entry in
+                            Text(entry.line)
+                                .font(.system(size: 12).monospaced())
+                                .foregroundStyle(colors.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .trCard()
+                }
+                .frame(maxHeight: 440)
+            }
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+            .onAppear { entries = ConnectionLog.shared.entries }
         }
     }
 }

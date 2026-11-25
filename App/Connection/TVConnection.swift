@@ -92,6 +92,12 @@ final class TVConnection: ObservableObject {
     /// Sant nar forsoket startades av appen sjalv. Da skrivs felet bara i
     /// statusraden; en ruta per misslyckat omforsok vore outhardligt.
     private var automatic = false
+    /// Det pagaende forsoket, sa att anslutningsloggen kan skriva en rad nar
+    /// det avgors. Bara korta avtryck, aldrig nyckel eller certifikat.
+    private var attemptIdentity = "-"
+    private var attemptExpected = "-"
+    private var attemptPresented = "-"
+    private var attemptLogged = true
 
     func connect(pair: Bool = false) {
         connect(pair: pair, automatic: false)
@@ -103,7 +109,11 @@ final class TVConnection: ObservableObject {
         guard !clean.isEmpty, clean.count <= 253,
               clean.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
               !clean.contains("/"), !clean.contains("://") else {
-            notice = "Välj din TV eller ange dess IP-adress."; return
+            notice = "Välj din TV eller ange dess IP-adress."
+            attemptIdentity = "-"; attemptExpected = "-"; attemptPresented = "-"
+            attemptLogged = false
+            log("Avbröts", "Ingen TV vald och ingen adress angiven.")
+            return
         }
         disconnect()
         host = clean
@@ -113,9 +123,18 @@ final class TVConnection: ObservableObject {
             let pin = try saved?.fingerprint ?? TrustStore.read(host: clean)
             if pin == nil && !pair {
                 status = "TV:n behöver parkopplas"; notice = "Tryck på Parkoppla och ange koden som visas på TV:n."
+                attemptIdentity = ConnectionLog.identityLabel(identity?.identity)
+                attemptExpected = "-"
+                attemptPresented = "-"
+                attemptLogged = false
+                log("Avbröts", "Inget pinnat certifikat sparat för adressen. Parkoppling behövs.")
                 return
             }
             isPairing = pair
+            attemptIdentity = ConnectionLog.identityLabel(identity?.identity)
+            attemptExpected = ConnectionLog.short(pin)
+            attemptPresented = "-"
+            attemptLogged = false
             pairing = PairingExchange(); remote = RemoteExchange(); frames = FrameBuffer()
             peerCertificate = nil; peerKey = nil
             busy = true; status = pair ? "Startar parkoppling…" : "Ansluter…"
@@ -135,6 +154,7 @@ final class TVConnection: ObservableObject {
                     }
                     let raw = SecCertificateCopyData(cert) as Data
                     let fingerprint = Data(SHA256.hash(data: raw))
+                    self.attemptPresented = ConnectionLog.short(fingerprint)
                     // Parkopplingen styrker certifikatet med koden på skärmen.
                     // I övriga fall avgör fingeravtrycket, aldrig adressen.
                     switch TVTrust.decide(saved: self.store.all, host: clean,
@@ -313,6 +333,7 @@ final class TVConnection: ObservableObject {
         status = "Inte ansluten"
     }
     private func fail(_ message: String) {
+        log("Misslyckades", message)
         let wasAutomatic = automatic
         disconnect()
         status = message
@@ -324,6 +345,23 @@ final class TVConnection: ObservableObject {
         // med: det kraver att anvandaren parkopplar om.
         if !needsRepair { reconnector.connectionDropped() }
     }
+    /// Skriver en rad om det pagaende forsoket. Varje forsok ger en rad:
+    /// attemptLogged hindrar att samma forsok skrivs tva ganger nar ett fel
+    /// utloser bade verify-blocket och stateUpdateHandler.
+    private func log(_ result: String, _ reason: String) {
+        guard !attemptLogged else { return }
+        attemptLogged = true
+        ConnectionLog.shared.record(ConnectionLogEntry(
+            tvName: tvName,
+            host: host,
+            identity: attemptIdentity,
+            expected: attemptExpected,
+            presented: attemptPresented,
+            result: result,
+            reason: reason
+        ))
+    }
+
     private func armDeadline(seconds: Double) {
         deadline?.cancel()
         let token = generation
@@ -393,6 +431,7 @@ final class TVConnection: ObservableObject {
                     ready = true; busy = false; needsRepair = false
                     automatic = false
                     reconnector.connected()
+                    log("Ansluten", on ? "" : "TV:n står i standby.")
                     status = on ? "Ansluten" : "Ansluten · TV i standby"
                     if let id = store.tv(host: host)?.id {
                         store.touch(id: id)

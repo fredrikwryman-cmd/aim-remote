@@ -91,15 +91,28 @@ enum IdentityStore {
     static let tag = Data("aim.remote.client.rsa.v1".utf8)
     static let certificateLabel = "AiM Remote client v1"
 
+    /// Läser en post i den delade gruppen och, om den inte finns där, i alla
+    /// grupper appen kommer åt. Det senare fångar en parkoppling som gjordes
+    /// innan den delade gruppen fanns, så att en befintlig identitet aldrig
+    /// förbigås och ersätts av en ny.
+    private static func copyRef(_ query: [String: Any]) -> (OSStatus, CFTypeRef?) {
+        var raw: CFTypeRef?
+        var status = SecItemCopyMatching(Shared.withGroup(query) as CFDictionary, &raw)
+        if status == errSecItemNotFound, Shared.sharedGroupAvailable {
+            raw = nil
+            status = SecItemCopyMatching(query as CFDictionary, &raw)
+        }
+        return (status, raw)
+    }
+
     static func loadOrCreate() throws -> ClientIdentity {
-        let keyQuery: [String: Any] = Shared.withGroup([
+        let (status, keyRaw) = copyRef([
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
             kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
             kSecReturnRef as String: true
         ])
-        var raw: CFTypeRef?
-        let status = SecItemCopyMatching(keyQuery as CFDictionary, &raw)
+        var raw: CFTypeRef? = keyRaw
         let key: SecKey
         if status == errSecSuccess, let raw {
             key = (raw as! SecKey)
@@ -126,13 +139,12 @@ enum IdentityStore {
         } else { throw AppFailure.message("Nyckelringen kunde inte öppnas (\(status)).") }
         guard let publicKey = SecKeyCopyPublicKey(key) else { throw AppFailure.message("Publik nyckel saknas.") }
 
-        let certQuery: [String: Any] = Shared.withGroup([
+        let (certStatus, certRaw) = copyRef([
             kSecClass as String: kSecClassCertificate,
             kSecAttrLabel as String: certificateLabel,
             kSecReturnRef as String: true
         ])
-        raw = nil
-        let certStatus = SecItemCopyMatching(certQuery as CFDictionary, &raw)
+        raw = certRaw
         let cert: SecCertificate
         if certStatus == errSecSuccess, let raw { cert = raw as! SecCertificate }
         else if certStatus == errSecItemNotFound {
@@ -143,7 +155,10 @@ enum IdentityStore {
             let add: [String: Any] = Shared.withGroup([
                 kSecClass as String: kSecClassCertificate,
                 kSecValueRef as String: created,
-                kSecAttrLabel as String: certificateLabel
+                kSecAttrLabel as String: certificateLabel,
+                // Samma skyddsklass som nyckeln: läsbar efter första
+                // upplåsningen, aldrig synkad och aldrig utanför enheten.
+                kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
             ])
             guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else {
                 throw AppFailure.message("Kunde inte spara klientcertifikatet.")
@@ -151,14 +166,15 @@ enum IdentityStore {
             cert = created
         } else { throw AppFailure.message("Klientcertifikatet kunde inte läsas.") }
 
-        let query: [String: Any] = Shared.withGroup([
+        let (identityStatus, identityRaw) = copyRef([
             kSecClass as String: kSecClassIdentity,
             kSecReturnRef as String: true,
             kSecMatchLimit as String: kSecMatchLimitAll
         ])
-        raw = nil
-        guard SecItemCopyMatching(query as CFDictionary, &raw) == errSecSuccess,
-              let identities = raw as? [SecIdentity] else { throw AppFailure.message("Klientidentiteten saknas.") }
+        guard identityStatus == errSecSuccess,
+              let identities = identityRaw as? [SecIdentity] else {
+            throw AppFailure.message("Klientidentiteten saknas.")
+        }
         let expected = SecCertificateCopyData(cert) as Data
         for identity in identities {
             var candidate: SecCertificate?

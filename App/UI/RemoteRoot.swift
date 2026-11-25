@@ -3,7 +3,7 @@ import AiMCore
 import UIKit
 
 enum Panel: String, Identifiable {
-    case connection, chooseTV, numbers, keyboard, help, appearance
+    case connection, chooseTV, numbers, keyboard, help, appearance, log
     var id: String { rawValue }
 }
 
@@ -94,7 +94,9 @@ struct RemoteRoot: View {
         case .keyboard:
             KeyboardPanel(connection: connection, onClose: close)
         case .help:
-            HelpPanel(onClose: close)
+            HelpPanel(onClose: close) { open($0) }
+        case .log:
+            ConnectionLogPanel(onClose: close)
         case .appearance:
             AppearancePanel(appearanceRaw: $appearanceRaw, onClose: close)
         }

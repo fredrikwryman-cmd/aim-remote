@@ -23,12 +23,20 @@ enum Shared {
         set { defaults.set(newValue, forKey: "active.tv.id") }
     }
 
+    /// Teamprefixet, upptäckt i körtid. Faller tillbaka på det inskrivna.
+    static let teamPrefix: String = discoveredTeamPrefix() ?? fallbackTeamPrefix
+
     /// Keychain-gruppen med teamprefix, upptäckt i körtid.
-    static let keychainGroup: String = {
-        if let prefix = discoveredTeamPrefix() {
-            return prefix + "." + keychainSuffix
-        }
-        return fallbackTeamPrefix + "." + keychainSuffix
+    static let keychainGroup: String = teamPrefix + "." + keychainSuffix
+
+    /// Appens egen grupp, den som application-identifier ger. En fråga UTAN
+    /// kSecAttrAccessGroup söker i alla grupper appen kommer åt, inte bara
+    /// den egna, så gruppen måste namnges när något ska läsas eller raderas
+    /// just där. nil betyder att den inte gick att avgöra, och då rörs
+    /// ingenting.
+    static let ownGroup: String? = {
+        guard let bundle = Bundle.main.bundleIdentifier, !bundle.isEmpty else { return nil }
+        return teamPrefix + "." + bundle
     }()
 
     /// Sant när appen faktiskt får använda den delade gruppen. I simulatorn
@@ -167,10 +175,24 @@ enum KeychainMigrator {
 /// Riktig nyckelring. Nyckel och certifikat kopieras via sina exporterade
 /// data, listan som vanlig post.
 struct SystemKeychainMover: KeychainMoving {
+    /// Appens egen grupp. nil betyder att den inte gick att avgöra; då
+    /// rapporteras posten som saknad i stället för att sökas i alla grupper.
+    private let ownGroup: String?
+
+    init(ownGroup: String? = Shared.ownGroup) { self.ownGroup = ownGroup }
+
+    /// En nyckelringsfråga utan kSecAttrAccessGroup gäller SAMTLIGA grupper
+    /// appen kommer åt. Därför namnges gruppen alltid, och går den egna inte
+    /// att namnge görs ingenting.
+    private func resolved(_ group: String?) -> String? {
+        group ?? ownGroup
+    }
+
     func exists(_ item: SharedItem, group: String?) -> Bool {
+        guard let scope = resolved(group) else { return false }
         var query = baseQuery(item)
         query[kSecReturnRef as String] = true
-        if let group { query[kSecAttrAccessGroup as String] = group }
+        query[kSecAttrAccessGroup as String] = scope
         var result: CFTypeRef?
         return SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess
     }
@@ -180,6 +202,7 @@ struct SystemKeychainMover: KeychainMoving {
         case .clientKey:
             var query = baseQuery(item)
             query[kSecReturnRef as String] = true
+            if let ownGroup { query[kSecAttrAccessGroup as String] = ownGroup }
             var result: CFTypeRef?
             guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
                   let raw = result else { throw AppFailure.message("Nyckeln kunde inte läsas.") }
@@ -208,12 +231,14 @@ struct SystemKeychainMover: KeychainMoving {
         case .clientCertificate:
             var query = baseQuery(item)
             query[kSecReturnRef as String] = true
+            if let ownGroup { query[kSecAttrAccessGroup as String] = ownGroup }
             var result: CFTypeRef?
             guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
                   let raw = result else { throw AppFailure.message("Certifikatet kunde inte läsas.") }
             var add = baseQuery(item)
             add[kSecValueRef as String] = (raw as! SecCertificate)
             add[kSecAttrAccessGroup as String] = group
+            add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
             let status = SecItemAdd(add as CFDictionary, nil)
             guard status == errSecSuccess || status == errSecDuplicateItem else {
                 throw AppFailure.message("Certifikatet kunde inte sparas i den delade gruppen (\(status)).")
@@ -222,6 +247,7 @@ struct SystemKeychainMover: KeychainMoving {
         case .tvList:
             var query = baseQuery(item)
             query[kSecReturnData as String] = true
+            if let ownGroup { query[kSecAttrAccessGroup as String] = ownGroup }
             var result: CFTypeRef?
             guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
                   let data = result as? Data else { throw AppFailure.message("Listan kunde inte läsas.") }
@@ -237,8 +263,14 @@ struct SystemKeychainMover: KeychainMoving {
     }
 
     func delete(_ item: SharedItem, group: String?) throws {
+        // Utan grupp i frågan raderar SecItemDelete posten i alla grupper
+        // appen kommer åt, alltså även den delade. Gruppen namnges därför
+        // alltid, och kan den egna inte namnges raderas ingenting.
+        guard let scope = resolved(group) else {
+            throw AppFailure.message("Appens egen nyckelringsgrupp kunde inte avgöras.")
+        }
         var query = baseQuery(item)
-        if let group { query[kSecAttrAccessGroup as String] = group }
+        query[kSecAttrAccessGroup as String] = scope
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw AppFailure.message("Posten kunde inte tas bort (\(status)).")
